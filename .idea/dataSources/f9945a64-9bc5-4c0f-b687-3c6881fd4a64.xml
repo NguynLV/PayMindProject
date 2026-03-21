@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataSource name="@localhost">
+  <database-model serializer="dbm" dbms="REDIS" family-id="REDIS" format-version="4.54">
+    <root id="1">
+      <ServerVersion>8.4.0</ServerVersion>
+    </root>
+    <schema id="2" parent="1" name="0">
+      <Current>1</Current>
+    </schema>
+    <schema id="3" parent="1" name="1"/>
+    <schema id="4" parent="1" name="2"/>
+    <schema id="5" parent="1" name="3"/>
+    <schema id="6" parent="1" name="4"/>
+    <schema id="7" parent="1" name="5"/>
+    <schema id="8" parent="1" name="6"/>
+    <schema id="9" parent="1" name="7"/>
+    <schema id="10" parent="1" name="8"/>
+    <schema id="11" parent="1" name="9"/>
+    <schema id="12" parent="1" name="10"/>
+    <schema id="13" parent="1" name="11"/>
+    <schema id="14" parent="1" name="12"/>
+    <schema id="15" parent="1" name="13"/>
+    <schema id="16" parent="1" name="14"/>
+    <schema id="17" parent="1" name="15"/>
+    <redis-key id="18" parent="2" name="redis_otp">
+      <Type>set</Type>
+    </redis-key>
+    <redis-key id="19" parent="2" name="redis_token">
+      <Type>set</Type>
+    </redis-key>
+    <redis-key id="20" parent="2" name="redis_token:274efeef-86d5-4b14-b287-2efba80a9c5e">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="21" parent="2" name="redis_token:33522a92-f41e-4a1a-b3cf-c8973ad1316e">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="22" parent="2" name="redis_token:39d1b11d-00e3-49f9-ab2d-53a84c3978ea">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="23" parent="2" name="redis_token:5a55c853-a440-44d6-8fef-4e97577e1e51">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="24" parent="2" name="redis_token:67950d1c-3da7-46ad-8b1b-9f5e166dbf5d">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="25" parent="2" name="redis_token:68ec732e-8eab-4859-990b-7a043d3105e8">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="26" parent="2" name="redis_token:766c8cf3-76df-4636-800e-30fccc978f1a">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="27" parent="2" name="redis_token:79e0c0f5-d39e-4fec-857e-02b1f7102bd1">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="28" parent="2" name="redis_token:a9bd048a-592c-4523-aa83-d07b9e1c77b8">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="29" parent="2" name="redis_token:d28e9342-2f11-4ff5-b9cf-1ec5d4410be9">
+      <Type>hash-table</Type>
+    </redis-key>
+    <redis-key id="30" parent="2" name="redis_token:eff95942-d540-4f03-b263-0fe5cd35cf62">
+      <Type>hash-table</Type>
+    </redis-key>
+  </database-model>
+</dataSource>

@@ -1,0 +1,57 @@
+package com.example.AppQuanLiChiTieu.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.Nationalized;
+
+import java.time.Instant;
+
+@Getter
+@Setter
+@Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "Notifications")
+public class Notification {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "NotificationId", nullable = false)
+    private Integer id;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "UserId", nullable = false)
+    private User user;
+
+    @Size(max = 200)
+    @NotNull
+    @Nationalized
+    @Column(name = "Title", nullable = false, length = 200)
+    private String title;
+
+    @NotNull
+    @Nationalized
+    @Column(name = "Content", nullable = false, columnDefinition = "NVARCHAR(MAX)")
+    private String content;
+
+    @Size(max = 50)
+    @NotNull
+    @Column(name = "Type", nullable = false, length = 50)
+    private String type; // BUDGET_ALERT, REMINDER, etc.
+
+    @NotNull
+    @Builder.Default
+    @ColumnDefault("0")
+    @Column(name = "IsRead", nullable = false)
+    private Boolean isRead = false;
+
+    @NotNull
+    @Builder.Default
+    @ColumnDefault("getdate()")
+    @Column(name = "CreatedAt", nullable = false)
+    private Instant createdAt = Instant.now();
+}

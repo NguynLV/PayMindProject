@@ -1,0 +1,16 @@
+# IDE
+.idea/
+.vscode/
+
+# Build outputs
+target/
+dist/
+build/
+.expo/
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

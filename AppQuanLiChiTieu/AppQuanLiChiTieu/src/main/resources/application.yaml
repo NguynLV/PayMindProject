@@ -1,0 +1,59 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /QuanLiChiTieu
+  tomcat:
+    max-http-post-size: 100MB
+    max-swallow-size: 100MB
+
+spring:
+  application:
+    name: AppQuanLiChiTieu
+
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost;databaseName=Project_Exe1;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:sa}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  jackson:
+    serialization:
+      fail-on-empty-beans: false
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.SQLServerDialect
+
+jwt:
+  signerKey: ${JWT_SIGNER_KEY:1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij}
+  valid-duration: 3600
+  refreshable-duration: 36000
+
+brevo:
+  api:
+    key: ${BREVO_API_KEY}
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+    url: ${GEMINI_API_URL:https://generativelanguage.googleapis.com}
+
+# Fallback for Feign
+gemini-api-url: "https://generativelanguage.googleapis.com"
