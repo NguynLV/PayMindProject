@@ -56,7 +56,7 @@ public class DiaryEntry {
     private Instant updatedAt;
 
     @NotNull
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsDeleted", nullable = false)
     private Boolean isDeleted = false;
 }

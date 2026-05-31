@@ -64,7 +64,7 @@ public class Budget {
     private Instant createdAt;
 
     @NotNull
-    @ColumnDefault("1")
+    @ColumnDefault("true")
     @Column(name = "IsActive", nullable = false)
     private Boolean isActive;
 

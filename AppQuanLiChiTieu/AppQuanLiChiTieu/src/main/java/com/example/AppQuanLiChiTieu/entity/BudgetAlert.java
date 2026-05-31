@@ -50,7 +50,7 @@ public class BudgetAlert {
     private Instant createdAt;
 
     @NotNull
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsAcknowledged", nullable = false)
     private Boolean isAcknowledged;
 

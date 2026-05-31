@@ -46,7 +46,7 @@ public class Notification {
 
     @NotNull
     @Builder.Default
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsRead", nullable = false)
     private Boolean isRead = false;
 

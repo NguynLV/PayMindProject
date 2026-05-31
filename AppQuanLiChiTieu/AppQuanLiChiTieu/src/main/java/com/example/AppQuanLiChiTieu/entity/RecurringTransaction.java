@@ -63,7 +63,7 @@ public class RecurringTransaction {
     private LocalDate nextRunDate;
 
     @NotNull
-    @ColumnDefault("1")
+    @ColumnDefault("true")
     @Column(name = "IsActive", nullable = false)
     private Boolean isActive;
 

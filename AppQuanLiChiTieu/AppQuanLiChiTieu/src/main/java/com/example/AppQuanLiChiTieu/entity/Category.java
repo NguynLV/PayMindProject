@@ -48,16 +48,16 @@ public class Category {
     private String type;
 
     @NotNull
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsDefault", nullable = false)
     private Boolean isDefault;
 
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsMain")
     private Boolean isMain = false;
 
     @NotNull
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsDeleted", nullable = false)
     private Boolean isDeleted;
 

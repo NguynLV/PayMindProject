@@ -43,12 +43,12 @@ public class Wallet {
     private String type;
 
     @NotNull
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsDefault", nullable = false)
     private Boolean isDefault;
 
     @NotNull
-    @ColumnDefault("0")
+    @ColumnDefault("false")
     @Column(name = "IsDeleted", nullable = false)
     private Boolean isDeleted;
 
