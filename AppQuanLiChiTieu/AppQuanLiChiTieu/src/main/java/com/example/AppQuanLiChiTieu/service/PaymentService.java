@@ -51,26 +51,33 @@ public class PaymentService {
             email = matcher.group().trim().toLowerCase();
             log.info("Extracted email using regex: {}", email);
         } else {
-            log.info("No full email found in description. Attempting fallback extraction.");
+            log.info("No full email found in description. Attempting fallback token scanning.");
             String[] tokens = description.trim().split("\\s+");
-            if (tokens.length > 0) {
-                String lastToken = tokens[tokens.length - 1].trim().toLowerCase();
-                // Strip non-alphanumeric characters (excluding dots and dashes)
-                lastToken = lastToken.replaceAll("[^a-zA-Z0-9._%-]", "");
-                if (lastToken.length() >= 3) {
-                    log.info("Extracted token from description: {}", lastToken);
-                    if (redisUserRepository.existsById(lastToken)) {
-                        email = lastToken;
-                    } else if (redisUserRepository.existsById(lastToken + "@gmail.com")) {
-                        email = lastToken + "@gmail.com";
+            for (String rawToken : tokens) {
+                String token = rawToken.trim().toLowerCase().replaceAll("[^a-zA-Z0-9._%-]", "");
+                if (token.length() >= 4) {
+                    log.info("Checking token: {}", token);
+                    if (redisUserRepository.existsById(token)) {
+                        email = token;
+                        break;
+                    } else if (redisUserRepository.existsById(token + "@gmail.com")) {
+                        email = token + "@gmail.com";
+                        break;
+                    } else if (redisUserRepository.existsById(token + "@fpt.edu.vn")) {
+                        email = token + "@fpt.edu.vn";
+                        break;
                     } else {
                         // Fallback: search all users in Redis
                         for (User u : redisUserRepository.findAll()) {
                             String userEmail = u.getEmail().toLowerCase();
-                            if (userEmail.startsWith(lastToken) || userEmail.contains(lastToken)) {
+                            if (userEmail.startsWith(token) || userEmail.contains(token)) {
                                 email = u.getEmail();
                                 break;
                             }
+                        }
+                        if (email != null) {
+                            log.info("Matched token '{}' to user email '{}'", token, email);
+                            break;
                         }
                     }
                 }
