@@ -52,10 +52,48 @@ public class PaymentService {
             log.info("Extracted email using regex: {}", email);
         }
 
-        // Priority 2: Match normalized email as a substring of normalized description
+        // Priority 2: Try direct token reconstruction by detecting stripped email domains
+        if (email == null) {
+            log.info("Attempting Priority 2 (token domain reconstruction).");
+            String[] tokens = description.trim().split("\\s+");
+            String[] knownDomains = {"gmail.com", "fpt.edu.vn", "yahoo.com", "outlook.com", "hotmail.com"};
+            for (String rawToken : tokens) {
+                String token = rawToken.trim().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (token.length() >= 4) {
+                    // Check if token contains/ends with a stripped domain name (e.g. gmailcom)
+                    for (String domain : knownDomains) {
+                        String strippedDomain = domain.replaceAll("[^a-z0-9]", "");
+                        if (token.endsWith(strippedDomain)) {
+                            String prefix = token.substring(0, token.length() - strippedDomain.length());
+                            String reconstructedEmail = prefix + "@" + domain;
+                            log.info("Reconstructed email check: {} for token: {}", reconstructedEmail, rawToken);
+                            if (redisUserRepository.existsById(reconstructedEmail)) {
+                                email = reconstructedEmail;
+                                break;
+                            }
+                        }
+                    }
+                    if (email != null) break;
+
+                    // Also check if token is just the prefix (e.g. exists by appending common domains)
+                    if (redisUserRepository.existsById(token)) {
+                        email = token;
+                        break;
+                    } else if (redisUserRepository.existsById(token + "@gmail.com")) {
+                        email = token + "@gmail.com";
+                        break;
+                    } else if (redisUserRepository.existsById(token + "@fpt.edu.vn")) {
+                        email = token + "@fpt.edu.vn";
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Priority 3: Fallback scan matching normalized email as substring of normalized description
         if (email == null) {
             String normDesc = description.toLowerCase().replaceAll("[^a-z0-9]", "");
-            log.info("Attempting Priority 2 (normalized email match). Normalized description: {}", normDesc);
+            log.info("Attempting Priority 3 (normalized substring matching). Normalized description: {}", normDesc);
             for (User u : redisUserRepository.findAll()) {
                 String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
                 if (!normUserEmail.isEmpty() && normDesc.contains(normUserEmail)) {
@@ -66,39 +104,23 @@ public class PaymentService {
             }
         }
 
-        // Priority 3: Fallback token scanning for truncated emails
+        // Priority 4: Fallback scan using startsWith/contains for token prefix
         if (email == null) {
-            log.info("Attempting Priority 3 (token-based fallback scanning).");
+            log.info("Attempting Priority 4 (token startsWith/contains scanning).");
             String[] tokens = description.trim().split("\\s+");
             for (String rawToken : tokens) {
-                String token = rawToken.trim().toLowerCase().replaceAll("[^a-zA-Z0-9._%-]", "");
-                if (token.length() >= 4) {
-                    log.info("Checking token: {}", token);
-                    if (redisUserRepository.existsById(token)) {
-                        email = token;
-                        break;
-                    } else if (redisUserRepository.existsById(token + "@gmail.com")) {
-                        email = token + "@gmail.com";
-                        break;
-                    } else if (redisUserRepository.existsById(token + "@fpt.edu.vn")) {
-                        email = token + "@fpt.edu.vn";
-                        break;
-                    } else {
-                        // Fallback: search all users in Redis using alphanumeric comparison
-                        String normToken = token.replaceAll("[^a-z0-9]", "");
-                        if (normToken.length() >= 5) {
-                            for (User u : redisUserRepository.findAll()) {
-                                String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
-                                if (normUserEmail.startsWith(normToken) || normUserEmail.contains(normToken)) {
-                                    email = u.getEmail();
-                                    break;
-                                }
-                            }
-                            if (email != null) {
-                                log.info("Matched token '{}' to user email '{}'", token, email);
-                                break;
-                            }
+                String token = rawToken.trim().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (token.length() >= 5) {
+                    for (User u : redisUserRepository.findAll()) {
+                        String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                        if (normUserEmail.startsWith(token) || normUserEmail.contains(token)) {
+                            email = u.getEmail();
+                            break;
                         }
+                    }
+                    if (email != null) {
+                        log.info("Matched token '{}' to user email '{}'", token, email);
+                        break;
                     }
                 }
             }
