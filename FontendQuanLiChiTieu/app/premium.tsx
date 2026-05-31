@@ -32,8 +32,8 @@ export default function PremiumScreen() {
 
     const getAmount = () => selectedTier === 'YEARLY' ? 190000 : 19000;
     const getTransferMemo = () => {
-        if (!user) return 'PAYMIND PREMIUM';
-        return `PAYMIND PREMIUM ${selectedTier === 'YEARLY' ? 'YEARLY' : 'MONTHLY'} ${user.email}`;
+        if (!user) return 'PAYMIND';
+        return `${selectedTier === 'YEARLY' ? 'PMY' : 'PM'} ${user.email}`;
     };
 
     // VietQR code generation URL memoized

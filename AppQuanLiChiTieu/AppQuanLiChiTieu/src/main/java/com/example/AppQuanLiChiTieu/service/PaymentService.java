@@ -33,7 +33,7 @@ public class PaymentService {
         }
 
         double requiredAmount = 19000.0;
-        if (description.toUpperCase().contains("YEARLY")) {
+        if (description.toUpperCase().contains("YEARLY") || description.toUpperCase().contains("PMY")) {
             requiredAmount = 190000.0;
         }
 
