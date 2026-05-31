@@ -36,7 +36,7 @@ public class Notification {
 
     @NotNull
     @Nationalized
-    @Column(name = "Content", nullable = false, columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "Content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Size(max = 50)
