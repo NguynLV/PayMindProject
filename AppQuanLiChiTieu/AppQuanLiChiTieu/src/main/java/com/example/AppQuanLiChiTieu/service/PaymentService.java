@@ -50,8 +50,25 @@ public class PaymentService {
         if (matcher.find()) {
             email = matcher.group().trim().toLowerCase();
             log.info("Extracted email using regex: {}", email);
-        } else {
-            log.info("No full email found in description. Attempting fallback token scanning.");
+        }
+
+        // Priority 2: Match normalized email as a substring of normalized description
+        if (email == null) {
+            String normDesc = description.toLowerCase().replaceAll("[^a-z0-9]", "");
+            log.info("Attempting Priority 2 (normalized email match). Normalized description: {}", normDesc);
+            for (User u : redisUserRepository.findAll()) {
+                String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (!normUserEmail.isEmpty() && normDesc.contains(normUserEmail)) {
+                    email = u.getEmail();
+                    log.info("Matched normalized email '{}' inside description", email);
+                    break;
+                }
+            }
+        }
+
+        // Priority 3: Fallback token scanning for truncated emails
+        if (email == null) {
+            log.info("Attempting Priority 3 (token-based fallback scanning).");
             String[] tokens = description.trim().split("\\s+");
             for (String rawToken : tokens) {
                 String token = rawToken.trim().toLowerCase().replaceAll("[^a-zA-Z0-9._%-]", "");
@@ -67,17 +84,20 @@ public class PaymentService {
                         email = token + "@fpt.edu.vn";
                         break;
                     } else {
-                        // Fallback: search all users in Redis
-                        for (User u : redisUserRepository.findAll()) {
-                            String userEmail = u.getEmail().toLowerCase();
-                            if (userEmail.startsWith(token) || userEmail.contains(token)) {
-                                email = u.getEmail();
+                        // Fallback: search all users in Redis using alphanumeric comparison
+                        String normToken = token.replaceAll("[^a-z0-9]", "");
+                        if (normToken.length() >= 5) {
+                            for (User u : redisUserRepository.findAll()) {
+                                String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                                if (normUserEmail.startsWith(normToken) || normUserEmail.contains(normToken)) {
+                                    email = u.getEmail();
+                                    break;
+                                }
+                            }
+                            if (email != null) {
+                                log.info("Matched token '{}' to user email '{}'", token, email);
                                 break;
                             }
-                        }
-                        if (email != null) {
-                            log.info("Matched token '{}' to user email '{}'", token, email);
-                            break;
                         }
                     }
                 }
