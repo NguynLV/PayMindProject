@@ -27,7 +27,7 @@ export default function PremiumScreen() {
     const bankAccount = {
         bankName: 'MBBank (Ngân hàng Quân Đội)',
         accountNo: '0868369069',
-        accountName: 'NGUYEN LE VIET HOANG', // Matching developer name or standardized account
+        accountName: 'LE VINH NGUYEN', // Matching owner name
     };
 
     const getAmount = () => selectedTier === 'YEARLY' ? 190000 : 19000;
