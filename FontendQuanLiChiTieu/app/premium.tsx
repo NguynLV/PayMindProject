@@ -40,7 +40,7 @@ export default function PremiumScreen() {
     const qrCodeUrl = React.useMemo(() => {
         const amount = selectedTier === 'YEARLY' ? 190000 : 19000;
         const memo = encodeURIComponent(getTransferMemo());
-        return `https://img.vietqr.io/image/MB-${bankAccount.accountNo}-compact2.png?amount=${amount}&addInfo=${memo}`;
+        return `https://img.vietqr.io/image/MB-${bankAccount.accountNo}-qr_only.png?amount=${amount}&addInfo=${memo}`;
     }, [selectedTier, user]);
 
 
@@ -251,8 +251,8 @@ export default function PremiumScreen() {
                             style={styles.qrImage}
                             resizeMode="contain"
                         />
-                        <Text style={styles.qrScanHint}>Quét mã QR bằng App ngân hàng để thanh toán</Text>
                     </View>
+                    <Text style={styles.qrScanHint}>Quét mã QR bằng App ngân hàng để thanh toán</Text>
 
                     {/* Bank Details Table */}
                     <View style={styles.detailsTable}>
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     recommendedBadgeText: { color: '#000', fontSize: 8, fontWeight: '900' },
 
     qrCard: { backgroundColor: '#F9FAFB', borderRadius: 24, padding: 18, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 28, alignItems: 'center' },
-    qrImageWrapper: { width: 200, height: 200, backgroundColor: '#fff', borderRadius: 16, padding: 10, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#E5E7EB' },
+    qrImageWrapper: { width: 240, height: 240, backgroundColor: '#fff', borderRadius: 16, padding: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
     qrImage: { width: '100%', height: '100%' },
     qrScanHint: { color: '#6B7280', fontSize: 11, fontWeight: '500', marginTop: 12, textAlign: 'center', paddingHorizontal: 10 },
 
