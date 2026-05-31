@@ -46,31 +46,62 @@ public class PaymentService {
         Pattern pattern = Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
         Matcher matcher = pattern.matcher(description);
 
-        if (!matcher.find()) {
-            log.warn("No email found in transaction description: {}", description);
+        String email = null;
+        if (matcher.find()) {
+            email = matcher.group().trim().toLowerCase();
+            log.info("Extracted email using regex: {}", email);
+        } else {
+            log.info("No full email found in description. Attempting fallback extraction.");
+            String[] tokens = description.trim().split("\\s+");
+            if (tokens.length > 0) {
+                String lastToken = tokens[tokens.length - 1].trim().toLowerCase();
+                // Strip non-alphanumeric characters (excluding dots and dashes)
+                lastToken = lastToken.replaceAll("[^a-zA-Z0-9._%-]", "");
+                if (lastToken.length() >= 3) {
+                    log.info("Extracted token from description: {}", lastToken);
+                    if (redisUserRepository.existsById(lastToken)) {
+                        email = lastToken;
+                    } else if (redisUserRepository.existsById(lastToken + "@gmail.com")) {
+                        email = lastToken + "@gmail.com";
+                    } else {
+                        // Fallback: search all users in Redis
+                        for (User u : redisUserRepository.findAll()) {
+                            String userEmail = u.getEmail().toLowerCase();
+                            if (userEmail.startsWith(lastToken) || userEmail.contains(lastToken)) {
+                                email = u.getEmail();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (email == null) {
+            log.warn("Could not extract email or user identifier from description: {}", description);
             throw new AppException(ErrorCode.INVALID_KEY);
         }
 
-        String email = matcher.group().trim().toLowerCase();
-        log.info("Extracted email from transaction description: {}", email);
+        final String finalEmail = email;
+        log.info("Final resolved email: {}", finalEmail);
 
-        User user = redisUserRepository.findById(email)
+        User user = redisUserRepository.findById(finalEmail)
                 .orElseThrow(() -> {
-                    log.warn("User with email {} not found in Redis", email);
+                    log.warn("User with email {} not found in Redis", finalEmail);
                     return new AppException(ErrorCode.USER_NOT_EXISTED);
                 });
 
         user.setIsPremium(true);
         redisUserRepository.save(user);
 
-        log.info("Successfully updated premium status for user: {}", email);
+        log.info("Successfully updated premium status for user: {}", finalEmail);
 
         // Send a system notification
         notificationService.createNotificationForUser(
                 "Nâng cấp Premium thành công! 👑",
                 "Chào mừng homie đã lên đời Premium! Tất cả các tính năng AI Assistant, AI Budget và Xuất Excel đã được mở khóa! 🎉✨",
                 "SYSTEM",
-                email
+                finalEmail
         );
     }
 }
