@@ -20,22 +20,25 @@ public class MailSentOtpService {
 
    EmailClient emailClient;
    String apiKey;
-
-   private static final String SENDER_EMAIL = "iphone0868369069@gmail.com";
-   private static final String SENDER_NAME = "QuanLiChiTieu";
+   String senderEmail;
+   String senderName;
 
    public MailSentOtpService(EmailClient emailClients,
-                            @Value("${brevo.api.key}") String apiKey) {
+                            @Value("${brevo.api.key}") String apiKey,
+                            @Value("${brevo.sender.email:iphone0868369069@gmail.com}") String senderEmail,
+                            @Value("${brevo.sender.name:QuanLiChiTieu}") String senderName) {
       this.emailClient = emailClients;
       this.apiKey = apiKey;
+      this.senderEmail = senderEmail;
+      this.senderName = senderName;
    }
 
    public void sendEmailCreateAccount(String toEmail, String toName, String username, String password) {
       String content = SendNewUserCreate.sendNewUserCreate(username, password);
 
       Sender sender = Sender.builder()
-              .email(SENDER_EMAIL)
-              .name(SENDER_NAME)
+              .email(senderEmail)
+              .name(senderName)
               .build();
 
       Recipient recipient = Recipient.builder()
@@ -70,8 +73,8 @@ public class MailSentOtpService {
         String content = com.example.AppQuanLiChiTieu.utils.BuildOtpEmail.buildOtpEmailHtml(toName, otpCode);
 
         Sender sender = Sender.builder()
-                .email(SENDER_EMAIL)
-                .name(SENDER_NAME)
+                .email(senderEmail)
+                .name(senderName)
                 .build();
 
         Recipient recipient = Recipient.builder()
@@ -106,8 +109,8 @@ public class MailSentOtpService {
         String content = com.example.AppQuanLiChiTieu.utils.BuildOtpEmail.buildForgotPasswordEmailHtml(toName, otpCode);
 
         Sender sender = Sender.builder()
-                .email(SENDER_EMAIL)
-                .name(SENDER_NAME)
+                .email(senderEmail)
+                .name(senderName)
                 .build();
 
         Recipient recipient = Recipient.builder()

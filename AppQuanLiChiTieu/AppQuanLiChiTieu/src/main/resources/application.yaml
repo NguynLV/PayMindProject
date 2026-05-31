@@ -51,6 +51,9 @@ jwt:
 brevo:
   api:
     key: ${BREVO_API_KEY:}
+  sender:
+    email: ${BREVO_SENDER_EMAIL:iphone0868369069@gmail.com}
+    name: ${BREVO_SENDER_NAME:QuanLiChiTieu}
 
 sepay:
   token: ${SEPAY_TOKEN:sepay_secret_token}
