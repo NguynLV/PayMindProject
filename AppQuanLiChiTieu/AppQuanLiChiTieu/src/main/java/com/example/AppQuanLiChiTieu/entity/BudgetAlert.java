@@ -45,7 +45,7 @@ public class BudgetAlert {
     private Instant triggeredAt;
 
     @NotNull
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt;
 

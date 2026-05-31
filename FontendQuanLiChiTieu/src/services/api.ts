@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// Use 10.0.2.2 for Android Emulator, local IP for physical devices
-const BASE_URL = 'http://192.168.1.41:8080/QuanLiChiTieu';
+// Use Render production URL for live testing
+const BASE_URL = 'https://paymindserver.onrender.com/QuanLiChiTieu';
+// const BASE_URL = 'http://192.168.1.41:8080/QuanLiChiTieu'; // Local backend
 
 export const TOKEN_KEY = 'auth_token';
 

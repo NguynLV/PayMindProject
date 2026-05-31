@@ -59,7 +59,7 @@ public class Budget {
     private Integer year;
 
     @NotNull
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt;
 

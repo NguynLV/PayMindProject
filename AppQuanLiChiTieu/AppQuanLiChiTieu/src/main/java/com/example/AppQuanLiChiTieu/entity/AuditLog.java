@@ -53,7 +53,7 @@ public class AuditLog {
     private String ipAddress;
 
     @NotNull
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt;
 

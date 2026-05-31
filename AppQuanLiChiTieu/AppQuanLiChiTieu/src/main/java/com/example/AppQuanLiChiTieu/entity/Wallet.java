@@ -56,7 +56,7 @@ public class Wallet {
     private Instant deletedAt;
 
     @NotNull
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt;
 

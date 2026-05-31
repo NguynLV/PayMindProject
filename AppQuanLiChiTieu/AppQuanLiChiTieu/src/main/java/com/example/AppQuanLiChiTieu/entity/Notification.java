@@ -52,7 +52,7 @@ public class Notification {
 
     @NotNull
     @Builder.Default
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt = Instant.now();
 }

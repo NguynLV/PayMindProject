@@ -68,7 +68,7 @@ public class RecurringTransaction {
     private Boolean isActive;
 
     @NotNull
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt;
 

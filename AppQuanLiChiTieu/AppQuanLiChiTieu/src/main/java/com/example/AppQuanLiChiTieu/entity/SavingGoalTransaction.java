@@ -50,7 +50,7 @@ public class SavingGoalTransaction {
     private String notes;
 
     @NotNull
-    @ColumnDefault("getdate()")
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "TransactionDate", nullable = false)
     private Instant transactionDate;
 }
