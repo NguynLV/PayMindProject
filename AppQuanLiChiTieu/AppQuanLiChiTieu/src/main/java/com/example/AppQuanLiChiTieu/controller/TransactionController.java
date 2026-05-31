@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -53,6 +54,13 @@ public class TransactionController {
         transactionService.deleteTransaction(id);
         return ApiResponse.<Void>builder()
                 .message("Xóa giao dịch thành công")
+                .build();
+    }
+
+    @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<String> uploadImage(@RequestPart("image") MultipartFile image) {
+        return ApiResponse.<String>builder()
+                .result(transactionService.uploadImage(image))
                 .build();
     }
 }

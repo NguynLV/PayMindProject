@@ -5,7 +5,6 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    Alert,
     Image,
     ActivityIndicator,
     Platform,
@@ -15,14 +14,11 @@ import {
     StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import AuthService from '@/services/auth.service';
-import { formatDate } from '@/utils/date';
-import { CustomDatePicker } from '@/components/common/CustomDatePicker';
 import { GoogleSignin, statusCodes, isErrorWithCode } from '@/utils/google-auth';
 import { saveToken } from '@/services/api';
-import { Gender } from '@/constants/enums';
+import { useToast } from '@/components/common/Toast';
 
 const GOOGLE_WEB_CLIENT_ID = '473436450565-hih6p9ftkiudpi2tplnml8p3pevg2h7q.apps.googleusercontent.com';
 const GOOGLE_IOS_CLIENT_ID = '473436450565-lbmqavb9i5ogs02gfie2970io80eatks.apps.googleusercontent.com';
@@ -37,16 +33,22 @@ if (GoogleSignin) {
 
 export default function RegisterScreen() {
     const router = useRouter();
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
 
-    // Form State
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
+
+    const [isFirstNameFocused, setIsFirstNameFocused] = useState(false);
+    const [isLastNameFocused, setIsLastNameFocused] = useState(false);
+    const [isEmailFocused, setIsEmailFocused] = useState(false);
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+    const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
 
     const validateEmail = (text: string) => {
         setEmail(text);
@@ -57,86 +59,44 @@ export default function RegisterScreen() {
             setEmailError('');
         }
     };
+    
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [phone, setPhone] = useState('');
-    const [currency, setCurrency] = useState('VND');
-    const [gender, setGender] = useState<Gender>(Gender.NAM);
-
-    // Date Picker State
-    const [birthday, setBirthday] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
-
-    // Avatar State
-    const [avatar, setAvatar] = useState<ImagePicker.ImagePickerAsset | null>(null);
-
-    const pickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to upload your avatar!');
-            return;
-        }
-
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-        });
-
-        if (!result.canceled) {
-            setAvatar(result.assets[0]);
-        }
-    };
-
-    const onDateChange = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || birthday;
-        setShowDatePicker(Platform.OS === 'ios');
-        setBirthday(currentDate);
-    };
 
     const handleRegister = async () => {
-        if (!firstName || !lastName || !email || !password || !confirmPassword || !phone) {
-            Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường thông tin bắt buộc');
+        if (!firstName || !lastName || !email || !password || !confirmPassword) {
+            toast.error('Ủa thiếu info kìa!', 'Điền đầy đủ các ô bắt buộc nha.');
             return;
         }
 
         if (password !== confirmPassword) {
-            Alert.alert('Mật khẩu không khớp', 'Mật khẩu xác nhận không trùng khớp. Vui lòng kiểm tra lại.');
+            toast.error('Mật khẩu chưa khớp nha!', 'Mật khẩu xác nhận không trùng khớp. Check lại xíu nha!');
             return;
         }
 
         setLoading(true);
         try {
-            const formattedBirthday = birthday.toISOString().split('T')[0];
-
             await AuthService.register({
                 firstName,
                 lastName,
                 email,
                 password,
                 confirmPassword,
-                phone,
-                currency,
-                gender,
-                birthday: formattedBirthday,
-                avatar: avatar,
             });
 
             setLoading(false);
-            Alert.alert('Đăng ký thành công', 'Vui lòng xác thực email của bạn để tiếp tục.', [
-                { text: 'OK', onPress: () => router.push({ pathname: '/auth/verify-otp', params: { email } }) }
-            ]);
+            toast.success('Đăng ký xong rồi! 🎉', 'Vui lòng xác thực email của bạn để tiếp tục.');
+            setTimeout(() => router.push({ pathname: '/auth/verify-otp', params: { email } }), 1500);
         } catch (error: any) {
             setLoading(false);
             const errorMsg = error?.response?.data?.message || error.message || 'Đã có lỗi xảy ra';
-            Alert.alert('Lỗi đăng ký', errorMsg);
+            toast.error('Đăng ký thất bại 😭', errorMsg);
         }
     };
 
     const handleGoogleLogin = async () => {
         if (!GoogleSignin) {
-            Alert.alert('Thông báo', 'Tính năng đăng ký bằng Google hiện chưa hỗ trợ trên Expo Go. Vui lòng dùng bản build chính thức.');
+            toast.info('Chưa hỗ trợ nha!', 'Tính năng đăng ký bằng Google chưa có trên Expo Go. Dùng bản build chính thức nha bạn ơi!');
             return;
         }
         setGoogleLoading(true);
@@ -156,10 +116,10 @@ export default function RegisterScreen() {
                         router.replace('/(tabs)');
                     }
                 } else {
-                    Alert.alert('Lỗi', 'Không thể xác thực tài khoản Google với máy chủ');
+                    toast.error('Ối dồi ôi! 😬', 'Không thể xác thực tài khoản Google với máy chủ. Thử lại nhé!');
                 }
             } else {
-                Alert.alert('Lỗi', 'Không lấy được thông tin từ Google');
+                toast.error('Lỗi Google rồi! 😓', 'Không lấy được thông tin từ Google. Thử lại xíu nha!');
             }
         } catch (error: any) {
             if (isErrorWithCode(error)) {
@@ -169,13 +129,13 @@ export default function RegisterScreen() {
                     case statusCodes.IN_PROGRESS:
                         break;
                     case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-                        Alert.alert('Lỗi', 'Google Play Services không khả dụng');
+                        toast.error('Play Services lỗi! 😵', 'Google Play Services không khả dụng trên thiết bị này.');
                         break;
                     default:
-                        Alert.alert('Lỗi Google Sign-In', error.message || 'Thất bại');
+                        toast.error('Google Sign-In thất bại 😭', error.message || 'Đã có lỗi xảy ra. Thử lại nha!');
                 }
             } else {
-                Alert.alert('Lỗi', error.message || 'Thất bại');
+                toast.error('Đăng ký thất bại 😭', error.message || 'Đã có lỗi xảy ra. Thử lại nha!');
             }
         } finally {
             setGoogleLoading(false);
@@ -188,28 +148,29 @@ export default function RegisterScreen() {
                 style={styles.keyboardAvoiding}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     bounces={false}
+                    keyboardShouldPersistTaps="handled"
                 >
                     {/* Header Section */}
                     <View style={styles.headerContainer}>
-                        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
                         <TouchableOpacity
                             style={styles.backButton}
                             onPress={() => router.back()}
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="arrow-back" size={24} color="#111827" />
+                            <Ionicons name="chevron-back" size={24} color="#1F2937" />
                         </TouchableOpacity>
-                        <Text style={styles.title}>Tham gia cùng
-                            chúng tôi!</Text>
-                        <Text style={styles.subtitle}>Tạo tài khoản để bắt đầu quản lý tài chính.</Text>
+                        <Text style={styles.title}>Đăng ký tài khoản</Text>
+                        <Text style={styles.subtitle}>Tạo tài khoản và bắt đầu quản lý tài chính thông minh</Text>
                     </View>
 
-                    {/* Progress Indicator */}
+                    {/* Step Progress Bar */}
                     <View style={styles.progressWrapper}>
-                        {[1, 2, 3].map((step) => (
+                        {[1, 2].map((step) => (
                             <View key={step} style={styles.stepIndicatorContainer}>
                                 <View style={[
                                     styles.stepDot,
@@ -217,34 +178,37 @@ export default function RegisterScreen() {
                                     currentStep > step && styles.stepDotFinished
                                 ]}>
                                     {currentStep > step ? (
-                                        <Ionicons name="checkmark" size={16} color="#fff" />
+                                        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                                     ) : (
                                         <Text style={[styles.stepDotText, currentStep >= step && styles.stepDotTextActive]}>{step}</Text>
                                     )}
                                 </View>
-                                {step < 3 && <View style={[styles.stepLine, currentStep > step && styles.stepLineActive]} />}
+                                {step < 2 && <View style={[styles.stepLine, currentStep > step && styles.stepLineActive]} />}
                             </View>
                         ))}
                     </View>
 
-                    {/* Step Content */}
+                    {/* Step Content Card */}
                     <View style={styles.formContainer}>
                         {currentStep === 1 && (
                             <>
-                                <Text style={styles.stepTitle}>Thông tin tài khoản</Text>
+                                <Text style={styles.stepTitle}>Tài khoản & Mật khẩu</Text>
+                                
                                 {/* Email */}
                                 <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Email</Text>
-                                    <View style={styles.inputContainer}>
-                                        <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                                    <Text style={styles.label}>Địa chỉ Email</Text>
+                                    <View style={[styles.inputContainer, isEmailFocused && styles.inputContainerFocused]}>
+                                        <Ionicons name="mail-outline" size={18} color={isEmailFocused ? '#6366F1' : '#94A3B8'} style={styles.inputIcon} />
                                         <TextInput
                                             style={styles.input}
                                             value={email}
                                             onChangeText={validateEmail}
                                             placeholder="john.doe@example.com"
-                                            placeholderTextColor="#9CA3AF"
+                                            placeholderTextColor="#94A3B8"
                                             keyboardType="email-address"
                                             autoCapitalize="none"
+                                            onFocus={() => setIsEmailFocused(true)}
+                                            onBlur={() => setIsEmailFocused(false)}
                                         />
                                     </View>
                                     {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
@@ -252,19 +216,21 @@ export default function RegisterScreen() {
 
                                 {/* Password */}
                                 <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Mật khẩu</Text>
-                                    <View style={styles.inputContainer}>
-                                        <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                                    <Text style={styles.label}>Mật khẩu bảo mật</Text>
+                                    <View style={[styles.inputContainer, isPasswordFocused && styles.inputContainerFocused]}>
+                                        <Ionicons name="lock-closed-outline" size={18} color={isPasswordFocused ? '#6366F1' : '#94A3B8'} style={styles.inputIcon} />
                                         <TextInput
                                             style={styles.input}
-                                            placeholder="Tạo mật khẩu"
-                                            placeholderTextColor="#9CA3AF"
+                                            placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                                            placeholderTextColor="#94A3B8"
                                             value={password}
                                             onChangeText={setPassword}
                                             secureTextEntry={!showPassword}
+                                            onFocus={() => setIsPasswordFocused(true)}
+                                            onBlur={() => setIsPasswordFocused(false)}
                                         />
                                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                            <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#9CA3AF" />
+                                            <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={18} color="#94A3B8" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -272,15 +238,17 @@ export default function RegisterScreen() {
                                 {/* Confirm Password */}
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>Xác nhận mật khẩu</Text>
-                                    <View style={styles.inputContainer}>
-                                        <Ionicons name="shield-checkmark-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                                    <View style={[styles.inputContainer, isConfirmPasswordFocused && styles.inputContainerFocused]}>
+                                        <Ionicons name="shield-checkmark-outline" size={18} color={isConfirmPasswordFocused ? '#6366F1' : '#94A3B8'} style={styles.inputIcon} />
                                         <TextInput
                                             style={styles.input}
-                                            placeholder="Nhập lại mật khẩu"
-                                            placeholderTextColor="#9CA3AF"
+                                            placeholder="Xác nhận lại mật khẩu vừa nhập"
+                                            placeholderTextColor="#94A3B8"
                                             value={confirmPassword}
                                             onChangeText={setConfirmPassword}
                                             secureTextEntry={!showPassword}
+                                            onFocus={() => setIsConfirmPasswordFocused(true)}
+                                            onBlur={() => setIsConfirmPasswordFocused(false)}
                                         />
                                     </View>
                                 </View>
@@ -289,103 +257,33 @@ export default function RegisterScreen() {
 
                         {currentStep === 2 && (
                             <>
-                                <Text style={styles.stepTitle}>Thông tin cá nhân</Text>
+                                <Text style={styles.stepTitle}>Hồ sơ cá nhân</Text>
                                 <View style={styles.formRow}>
                                     <View style={styles.inputGroupHalf}>
-                                        <Text style={styles.label}>Họ</Text>
-                                        <View style={styles.inputContainer}>
-                                            <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                            <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="Nguyễn" placeholderTextColor="#9CA3AF" />
+                                        <Text style={styles.label}>Họ của bạn</Text>
+                                        <View style={[styles.inputContainer, isLastNameFocused && styles.inputContainerFocused]}>
+                                            <TextInput 
+                                                style={[styles.input, { paddingLeft: 0 }]} 
+                                                value={lastName} 
+                                                onChangeText={setLastName} 
+                                                placeholder="Nguyễn" 
+                                                placeholderTextColor="#94A3B8"
+                                                onFocus={() => setIsLastNameFocused(true)}
+                                                onBlur={() => setIsLastNameFocused(false)}
+                                            />
                                         </View>
                                     </View>
                                     <View style={styles.inputGroupHalf}>
-                                        <Text style={styles.label}>Tên</Text>
-                                        <View style={styles.inputContainer}>
-                                            <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="An" placeholderTextColor="#9CA3AF" />
-                                        </View>
-                                    </View>
-                                </View>
-
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Số điện thoại</Text>
-                                    <View style={styles.inputContainer}>
-                                        <Ionicons name="call-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                        <TextInput
-                                            style={styles.input}
-                                            value={phone}
-                                            onChangeText={setPhone}
-                                            placeholder="09xx xxx xxx"
-                                            placeholderTextColor="#9CA3AF"
-                                            keyboardType="phone-pad"
-                                        />
-                                    </View>
-                                </View>
-
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.label}>Giới tính</Text>
-                                    <View style={styles.genderContainer}>
-                                        {Object.values(Gender).map((g) => (
-                                            <TouchableOpacity
-                                                key={g}
-                                                style={[styles.genderButton, gender === g && styles.genderButtonSelected]}
-                                                onPress={() => setGender(g)}
-                                            >
-                                                <Text style={[styles.genderText, gender === g && styles.genderTextSelected]}>{g}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                </View>
-                            </>
-                        )}
-
-                        {currentStep === 3 && (
-                            <>
-                                <Text style={styles.stepTitle}>Hoàn thiện thiết lập</Text>
-                                {/* Avatar Picker */}
-                                <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
-                                    {avatar ? (
-                                        <Image source={{ uri: avatar.uri }} style={styles.avatar} />
-                                    ) : (
-                                        <View style={styles.avatarPlaceholder}>
-                                            <Ionicons name="camera" size={40} color="#9CA3AF" />
-                                            <Text style={styles.avatarText}>Tải ảnh lên</Text>
-                                        </View>
-                                    )}
-                                    <View style={styles.avatarBadge}>
-                                        <Ionicons name="add" size={16} color="#fff" />
-                                    </View>
-                                </TouchableOpacity>
-
-                                <View style={styles.formRow}>
-                                    {/* Birthday */}
-                                    <View style={styles.inputGroupHalf}>
-                                        <Text style={styles.label}>Ngày sinh</Text>
-                                        <TouchableOpacity style={styles.inputContainer} onPress={() => setShowDatePicker(true)}>
-                                            <Ionicons name="calendar-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                            <Text style={styles.dateText}>{formatDate(birthday)}</Text>
-                                        </TouchableOpacity>
-                                        <CustomDatePicker
-                                            visible={showDatePicker}
-                                            onClose={() => setShowDatePicker(false)}
-                                            initialDate={birthday}
-                                            onSelect={(selectedDate) => {
-                                                setBirthday(selectedDate);
-                                            }}
-                                            title="Chọn ngày sinh"
-                                        />
-                                    </View>
-
-                                    {/* Currency */}
-                                    <View style={styles.inputGroupHalf}>
-                                        <Text style={styles.label}>Tiền tệ</Text>
-                                        <View style={styles.inputContainer}>
-                                            <Ionicons name="cash-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                            <TextInput
-                                                style={styles.input}
-                                                value={currency}
-                                                onChangeText={setCurrency}
-                                                placeholder="VND"
-                                                placeholderTextColor="#9CA3AF"
+                                        <Text style={styles.label}>Tên của bạn</Text>
+                                        <View style={[styles.inputContainer, isFirstNameFocused && styles.inputContainerFocused]}>
+                                            <TextInput 
+                                                style={[styles.input, { paddingLeft: 0 }]} 
+                                                value={firstName} 
+                                                onChangeText={setFirstName} 
+                                                placeholder="Văn An" 
+                                                placeholderTextColor="#94A3B8"
+                                                onFocus={() => setIsFirstNameFocused(true)}
+                                                onBlur={() => setIsFirstNameFocused(false)}
                                             />
                                         </View>
                                     </View>
@@ -393,12 +291,13 @@ export default function RegisterScreen() {
                             </>
                         )}
 
-                        {/* Navigation Buttons */}
+                        {/* Step Navigation Action Row */}
                         <View style={styles.stepActions}>
                             {currentStep > 1 && (
                                 <TouchableOpacity
                                     style={styles.backStepBtn}
                                     onPress={() => setCurrentStep(prev => prev - 1)}
+                                    activeOpacity={0.7}
                                 >
                                     <Text style={styles.backStepBtnText}>Quay lại</Text>
                                 </TouchableOpacity>
@@ -411,70 +310,56 @@ export default function RegisterScreen() {
                                     loading && styles.registerButtonDisabled
                                 ]}
                                 onPress={async () => {
-                                    if (currentStep < 3) {
-                                        // Basic validation for step 1
+                                    if (currentStep < 2) {
                                         if (currentStep === 1) {
                                             if (!email || !password || !confirmPassword) {
-                                                Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ email và mật khẩu');
+                                                toast.error('Ủa thiếu info kìa!', 'Điền đầy đủ email và mật khẩu nha bạn ơi!');
                                                 return;
                                             }
                                             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                                             if (!emailRegex.test(email.trim())) {
                                                 setEmailError('Email không đúng định dạng');
-                                                Alert.alert('Lỗi', 'Email không đúng định dạng. Vui lòng kiểm tra lại.');
+                                                toast.error('Email sai định dạng rồi! 📧', 'Email nhập vào chưa đúng định dạng. Kiểm tra lại nha!');
                                                 return;
                                             }
                                             if (password.length < 6) {
-                                                Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự');
+                                                toast.error('Mật khẩu quá ngắn! 🔑', 'Mật khẩu phải có ít nhất 6 ký tự nha!');
                                                 return;
                                             }
                                             if (password !== confirmPassword) {
-                                                Alert.alert('Lỗi', 'Mật khẩu không khớp');
+                                                toast.error('Mật khẩu chưa khớp nha!', 'Hai mật khẩu không giống nhau. Check lại đi!');
                                                 return;
                                             }
-                                            // Check if email already exists
                                             setLoading(true);
                                             try {
-                                                const { exists } = await AuthService.checkEmail(email.trim());
+                                                const exists = await AuthService.checkEmail(email.trim());
                                                 if (exists) {
                                                     setLoading(false);
-                                                    Alert.alert('Email đã tồn tại', 'Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập.');
+                                                    toast.error('Email đã có chủ rồi! 📭', 'Email này đã được đăng ký rồi. Dùng email khác hoặc đăng nhập nha!');
                                                     return;
                                                 }
                                             } catch (error) {
                                                 console.warn('Lỗi kiểm tra email:', error);
                                             }
                                             setLoading(false);
-
-                                            // Step 1 validation passed
                                             setCurrentStep(2);
-                                        } else if (currentStep === 2) {
-                                            if (!firstName.trim() || !lastName.trim() || !phone.trim() || !gender) {
-                                                Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ các thông tin cá nhân (Họ, Tên, Số điện thoại)');
-                                                return;
-                                            }
-
-                                            // Validate Vietnamese phone number
-                                            const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
-                                            if (!phoneRegex.test(phone.trim())) {
-                                                Alert.alert('Lỗi', 'Số điện thoại không đúng định dạng. ');
-                                                return;
-                                            }
-
-                                            // Step 2 validation passed
-                                            setCurrentStep(3);
                                         }
                                     } else {
+                                        if (!firstName.trim() || !lastName.trim()) {
+                                            toast.error('Ủa thiếu tên kìa!', 'Điền đầy đủ họ và tên nha bạn ơi!');
+                                            return;
+                                        }
                                         handleRegister();
                                     }
                                 }}
                                 disabled={loading}
+                                activeOpacity={0.85}
                             >
                                 {loading ? (
-                                    <ActivityIndicator color="#ffffff" size="small" />
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
                                 ) : (
                                     <Text style={styles.registerButtonText}>
-                                        {currentStep === 3 ? "Hoàn tất" : "Tiếp theo"}
+                                        {currentStep === 2 ? "Xác nhận tạo tài khoản" : "Tiếp theo"}
                                     </Text>
                                 )}
                             </TouchableOpacity>
@@ -487,7 +372,7 @@ export default function RegisterScreen() {
                             <View style={styles.dividerLine} />
                         </View>
 
-                        {/* Google Social Register */}
+                        {/* Social Google */}
                         <TouchableOpacity
                             style={[styles.googleBtn, googleLoading && styles.googleBtnDisabled]}
                             activeOpacity={0.85}
@@ -495,7 +380,7 @@ export default function RegisterScreen() {
                             disabled={googleLoading}
                         >
                             {googleLoading ? (
-                                <ActivityIndicator size={22} color="#4285F4" />
+                                <ActivityIndicator size={20} color="#6366F1" />
                             ) : (
                                 <Image
                                     source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
@@ -503,14 +388,14 @@ export default function RegisterScreen() {
                                     resizeMode="contain"
                                 />
                             )}
-                            <Text style={styles.googleBtnText}>Đăng ký với Google</Text>
+                            <Text style={styles.googleBtnText}>Đăng ký bằng Google</Text>
                         </TouchableOpacity>
 
-                        {/* Login Link */}
+                        {/* Login Navigation Link */}
                         {currentStep === 1 && (
                             <View style={styles.loginContainer}>
                                 <Text style={styles.loginText}>Bạn đã có tài khoản? </Text>
-                                <TouchableOpacity onPress={() => router.push('/auth/login')}>
+                                <TouchableOpacity onPress={() => router.push('/auth/login')} activeOpacity={0.6}>
                                     <Text style={styles.loginLink}>Đăng nhập</Text>
                                 </TouchableOpacity>
                             </View>
@@ -523,332 +408,99 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: '#ffffff',
-    },
-    keyboardAvoiding: {
-        flex: 1,
-    },
-    scrollContent: {
-        flexGrow: 1,
-    },
+    safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+    keyboardAvoiding: { flex: 1 },
+    scrollContent: { flexGrow: 1, paddingBottom: 30 },
     headerContainer: {
-        paddingTop: 60,
-        paddingBottom: 60,
-        paddingHorizontal: 24,
-        backgroundColor: '#ffffff',
-        borderBottomLeftRadius: 40,
-        borderBottomRightRadius: 40,
+        paddingTop: Platform.OS === 'android' ? 24 : 12, 
+        paddingBottom: 24, 
+        paddingHorizontal: 20,
+        backgroundColor: '#FFFFFF',
     },
     backButton: {
-        width: 40,
-        height: 40,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
+        width: 40, height: 40, backgroundColor: '#F8FAFC',
+        borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+        borderWidth: 1, borderColor: '#F1F5F9'
     },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#111827',
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#6B7280',
-    },
-    formContainer: {
-        backgroundColor: '#ffffff',
-        marginHorizontal: 20,
-        marginTop: 10,  // Changed from -40 to avoid overlapping progress
-        borderRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 5,
-        paddingBottom: 40,
-        marginBottom: 20,
-    },
-    avatarContainer: {
-        alignSelf: 'center',
-        marginBottom: 30,
-        position: 'relative',
-    },
-    avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 4,
-        borderColor: '#E5E7EB',
-    },
-    avatarPlaceholder: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: '#ffffff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#E5E7EB',
-        borderStyle: 'dashed',
-    },
-    avatarText: {
-        color: '#9CA3AF',
-        fontSize: 12,
-        marginTop: 4,
-        fontWeight: '500',
-    },
-    avatarBadge: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        backgroundColor: '#4F46E5',
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 3,
-        borderColor: '#ffffff',
-    },
-    formRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    inputGroup: {
-        marginBottom: 20,
-    },
-    inputGroupHalf: {
-        marginBottom: 20,
-        width: '48%',
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#374151',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        height: 56,
-    },
-    inputIcon: {
-        marginRight: 10,
-    },
-    input: {
-        flex: 1,
-        fontSize: 16,
-        color: '#111827',
-        height: '100%',
-    },
-    dateText: {
-        flex: 1,
-        fontSize: 16,
-        color: '#111827',
-    },
-    eyeIcon: {
-        padding: 5,
-    },
-    genderContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        backgroundColor: '#F9FAFB',
-        padding: 4,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    genderButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    genderButtonSelected: {
-        backgroundColor: '#ffffff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    genderText: {
-        color: '#6B7280',
-        fontSize: 15,
-        fontWeight: '500',
-    },
-    genderTextSelected: {
-        color: '#4F46E5',
-        fontWeight: 'bold',
-    },
-    registerButton: {
-        backgroundColor: '#4F46E5',
-        borderRadius: 16,
-        height: 56,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-        marginTop: 10,
-    },
-    registerButtonDisabled: {
-        backgroundColor: '#818CF8',
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    registerButtonText: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    loginContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 24,
-    },
-    loginText: {
-        color: '#6B7280',
-        fontSize: 15,
-    },
-    loginLink: {
-        color: '#4F46E5',
-        fontSize: 15,
-        fontWeight: 'bold',
-    },
-    // Divider
-    dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 20 },
-    dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
-    dividerText: { color: '#9CA3AF', paddingHorizontal: 12, fontSize: 12, fontWeight: '600' },
+    title: { fontSize: 24, fontWeight: '800', color: '#1F2937', marginBottom: 8 },
+    subtitle: { fontSize: 13, color: '#64748B', lineHeight: 18, fontWeight: '500' },
 
-    // Google Button
-    googleBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#fff',
+    formContainer: {
+        backgroundColor: '#FFFFFF', 
+        marginHorizontal: 16, 
+        marginTop: 8,
+        borderRadius: 24, 
+        padding: 20,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 16,
-        height: 56,
-        gap: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        borderColor: '#F1F5F9',
+        paddingBottom: 30,
+    },
+    formRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    inputGroup: { marginBottom: 18 },
+    inputGroupHalf: { marginBottom: 18, width: '48%' },
+    label: { fontSize: 12, fontWeight: '600', color: '#64748B', marginBottom: 8, marginLeft: 2 },
+    inputContainer: {
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+        borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14,
+        paddingHorizontal: 12, height: 50,
+    },
+    inputContainerFocused: { borderColor: '#6366F1' },
+    inputIcon: { marginRight: 8 },
+    input: { flex: 1, fontSize: 14, color: '#1F2937', height: '100%', fontWeight: '500' },
+    eyeIcon: { padding: 5 },
+    
+    registerButtonDisabled: { backgroundColor: '#A5B4FC', shadowOpacity: 0, elevation: 0 },
+    registerButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+    
+    loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24 },
+    loginText: { color: '#64748B', fontSize: 13, fontWeight: '500' },
+    loginLink: { color: '#6366F1', fontSize: 13, fontWeight: '700' },
+    
+    dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 18 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: '#F1F5F9' },
+    dividerText: { color: '#94A3B8', paddingHorizontal: 12, fontSize: 10, fontWeight: '600' },
+    
+    googleBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+        borderRadius: 14, height: 50, gap: 8,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
     },
     googleBtnDisabled: { opacity: 0.5 },
-    googleLogoImg: { width: 24, height: 24 },
-    googleBtnText: { fontSize: 16, fontWeight: '600', color: '#111827' },
-    errorText: { color: '#EF4444', fontSize: 13, marginTop: 6, marginLeft: 4, fontWeight: '500' },
+    googleLogoImg: { width: 20, height: 20 },
+    googleBtnText: { fontSize: 14, fontWeight: '700', color: '#374151' },
+    errorText: { color: '#EF4444', fontSize: 11, marginTop: 4, marginLeft: 4, fontWeight: '600' },
 
-    // Multi-step Styles
     progressWrapper: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: -10, // Adjusted position for white background
-        marginBottom: 20,
-        zIndex: 20,
+        flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+        marginTop: 0, marginBottom: 20,
     },
-    stepIndicatorContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
+    stepIndicatorContainer: { flexDirection: 'row', alignItems: 'center' },
     stepDot: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#ffffff',
-        borderWidth: 2,
-        borderColor: '#E5E7EB',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF',
+        borderWidth: 2, borderColor: '#E2E8F0',
+        justifyContent: 'center', alignItems: 'center',
     },
-    stepDotActive: {
-        borderColor: '#4F46E5',
-        backgroundColor: '#EEF2FF',
-    },
-    stepDotFinished: {
-        backgroundColor: '#4F46E5',
-        borderColor: '#4F46E5',
-    },
-    stepDotText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#9CA3AF',
-    },
-    stepDotTextActive: {
-        color: '#4F46E5',
-    },
-    stepLine: {
-        width: 40,
-        height: 3,
-        backgroundColor: '#E5E7EB',
-        marginHorizontal: 4,
-    },
-    stepLineActive: {
-        backgroundColor: '#4F46E5',
-    },
-    stepTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    stepActions: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 20,
-    },
+    stepDotActive: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
+    stepDotFinished: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+    stepDotText: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
+    stepDotTextActive: { color: '#6366F1' },
+    stepLine: { width: 44, height: 2.5, backgroundColor: '#E2E8F0', marginHorizontal: 4 },
+    stepLineActive: { backgroundColor: '#6366F1' },
+    stepTitle: { fontSize: 16, fontWeight: '700', color: '#1F2937', marginBottom: 18 },
+
+    stepActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
     backStepBtn: {
-        flex: 1,
-        height: 56,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#F3F4F6',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        flex: 1, height: 50, borderRadius: 14,
+        backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
+        marginRight: 10,
     },
-    backStepBtnText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#4B5563',
-    },
+    backStepBtnText: { fontSize: 14, fontWeight: '600', color: '#475569' },
     nextStepBtn: {
-        flex: 2,
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: '#4F46E5',
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
+        flex: 2, height: 50, borderRadius: 14,
+        backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
     },
 });

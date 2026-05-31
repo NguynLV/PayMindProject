@@ -7,8 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Nationalized;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -23,11 +21,10 @@ public class Wallet {
     @Column(name = "WalletId", nullable = false)
     private Integer id;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "UserId", nullable = false)
-    private User user;
+    @Size(max = 255)
+    @Column(name = "OwnerEmail")
+    private String ownerEmail;
+
 
     @Size(max = 100)
     @NotNull

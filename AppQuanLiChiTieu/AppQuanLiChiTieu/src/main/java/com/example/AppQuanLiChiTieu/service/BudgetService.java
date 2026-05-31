@@ -5,13 +5,11 @@ import com.example.AppQuanLiChiTieu.dto.response.BudgetResponse;
 import com.example.AppQuanLiChiTieu.entity.Budget;
 import com.example.AppQuanLiChiTieu.entity.Category;
 import com.example.AppQuanLiChiTieu.entity.Transaction;
-import com.example.AppQuanLiChiTieu.entity.User;
 import com.example.AppQuanLiChiTieu.exception.AppException;
 import com.example.AppQuanLiChiTieu.exception.ErrorCode;
 import com.example.AppQuanLiChiTieu.repository.BudgetRepository;
 import com.example.AppQuanLiChiTieu.repository.CategoryRepository;
 import com.example.AppQuanLiChiTieu.repository.TransactionRepository;
-import com.example.AppQuanLiChiTieu.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -35,15 +33,8 @@ public class BudgetService {
     BudgetRepository budgetRepository;
     CategoryRepository categoryRepository;
     TransactionRepository transactionRepository;
-    UserRepository userRepository;
 
-    private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-    }
-
-    private BigDecimal calculateSpentAmount(User user, Budget budget) {
+    private BigDecimal calculateSpentAmount(Budget budget, String currentUserEmail) {
         Instant startDate;
         Instant endDate;
 
@@ -52,14 +43,12 @@ public class BudgetService {
             startDate = yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
             endDate = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
         } else if ("Weekly".equalsIgnoreCase(budget.getPeriod())) {
-            // Calculation for current week (Monday to Sunday)
             LocalDate today = LocalDate.now();
             LocalDate monday = today.with(DayOfWeek.MONDAY);
             LocalDate sunday = today.with(DayOfWeek.SUNDAY);
             startDate = monday.atStartOfDay(ZoneId.systemDefault()).toInstant();
             endDate = sunday.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
         } else if ("Daily".equalsIgnoreCase(budget.getPeriod())) {
-            // For Daily, periodValue is Day. Use current month/year for calculation.
             int month = LocalDate.now().getMonthValue();
             startDate = YearMonth.of(budget.getYear(), month).atDay(budget.getPeriodValue()).atStartOfDay(ZoneId.systemDefault()).toInstant();
             endDate = YearMonth.of(budget.getYear(), month).atDay(budget.getPeriodValue()).atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
@@ -68,7 +57,7 @@ public class BudgetService {
         }
 
         List<Transaction> transactions = transactionRepository
-                .findByUserAndTypeAndIsDeletedFalseAndTransactionDateBetween(user, "EXPENSE", startDate, endDate);
+                .findByTypeAndOwnerEmailAndIsDeletedFalseAndTransactionDateBetween("EXPENSE", currentUserEmail, startDate, endDate);
 
         return transactions.stream()
                 .filter(t -> budget.getCategory() == null || t.getCategory().getId().equals(budget.getCategory().getId()))
@@ -94,48 +83,47 @@ public class BudgetService {
     }
 
     public List<BudgetResponse> getMyBudgets() {
-        User user = getCurrentUser();
-        List<Budget> budgets = budgetRepository.findByUserAndIsActiveTrue(user);
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<Budget> budgets = budgetRepository.findByOwnerEmailAndIsActiveTrue(currentUserEmail);
         
         return budgets.stream().map(budget -> {
-            BigDecimal spent = calculateSpentAmount(user, budget);
+            BigDecimal spent = calculateSpentAmount(budget, currentUserEmail);
             return toBudgetResponse(budget, spent);
         }).collect(Collectors.toList());
     }
 
     public BudgetResponse createBudget(BudgetRequest request) {
-        User user = getCurrentUser();
-        
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         Category category = null;
         if (request.getCategoryId() != null) {
-            category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION)); // Category not found
+            category = categoryRepository.findByIdAndOwnerEmailAndIsDeletedFalse(request.getCategoryId(), currentUserEmail)
+                    .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
         }
 
         Budget budget = new Budget();
-        budget.setUser(user);
         budget.setCategory(category);
         budget.setName(request.getName());
         budget.setAmount(request.getAmount());
-        budget.setAlertThreshold(new BigDecimal("80.00")); // default to 80%
+        budget.setAlertThreshold(new BigDecimal("80.00"));
         budget.setPeriod(request.getPeriod());
         budget.setPeriodValue(request.getPeriodValue());
         budget.setYear(request.getYear());
         budget.setCreatedAt(Instant.now());
         budget.setIsActive(true);
+        budget.setOwnerEmail(currentUserEmail);
 
         Budget savedBudget = budgetRepository.save(budget);
-        return toBudgetResponse(savedBudget, BigDecimal.ZERO); // initially 0 because we might just created it
+        return toBudgetResponse(savedBudget, BigDecimal.ZERO);
     }
 
     public BudgetResponse updateBudget(Integer id, BudgetRequest request) {
-        User user = getCurrentUser();
-        Budget budget = budgetRepository.findByIdAndUserAndIsActiveTrue(id, user)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Budget budget = budgetRepository.findByIdAndOwnerEmailAndIsActiveTrue(id, currentUserEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
 
         Category category = null;
         if (request.getCategoryId() != null) {
-            category = categoryRepository.findById(request.getCategoryId())
+            category = categoryRepository.findByIdAndOwnerEmailAndIsDeletedFalse(request.getCategoryId(), currentUserEmail)
                     .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
         }
 
@@ -147,13 +135,13 @@ public class BudgetService {
         budget.setYear(request.getYear());
 
         Budget savedBudget = budgetRepository.save(budget);
-        BigDecimal spent = calculateSpentAmount(user, savedBudget);
+        BigDecimal spent = calculateSpentAmount(savedBudget, currentUserEmail);
         return toBudgetResponse(savedBudget, spent);
     }
 
     public void deleteBudget(Integer id) {
-        User user = getCurrentUser();
-        Budget budget = budgetRepository.findByIdAndUserAndIsActiveTrue(id, user)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Budget budget = budgetRepository.findByIdAndOwnerEmailAndIsActiveTrue(id, currentUserEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
         
         budget.setIsActive(false);

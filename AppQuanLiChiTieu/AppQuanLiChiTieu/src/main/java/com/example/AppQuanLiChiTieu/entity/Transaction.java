@@ -7,8 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Nationalized;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -23,11 +21,10 @@ public class Transaction {
     @Column(name = "TransactionId", nullable = false)
     private Integer id;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "UserId", nullable = false)
-    private User user;
+    @jakarta.validation.constraints.Size(max = 255)
+    @jakarta.persistence.Column(name = "OwnerEmail")
+    private String ownerEmail;
+
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -70,6 +67,16 @@ public class Transaction {
     @Nationalized
     @Column(name = "Location")
     private String location;
+
+    @Size(max = 1000)
+    @Nationalized
+    @Column(name = "ImageUrl", length = 1000)
+    private String imageUrl;
+
+    @Size(max = 50)
+    @Nationalized
+    @Column(name = "Mood", length = 50)
+    private String mood;
 
     @NotNull
     @Column(name = "TransactionDate", nullable = false)

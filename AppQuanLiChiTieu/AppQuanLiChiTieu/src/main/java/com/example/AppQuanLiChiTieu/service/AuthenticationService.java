@@ -13,12 +13,12 @@ import com.example.AppQuanLiChiTieu.dto.response.IntrospectResponse;
 import com.example.AppQuanLiChiTieu.dto.response.AuthenticationResponse;
 import com.example.AppQuanLiChiTieu.entity.RedisOtp;
 import com.example.AppQuanLiChiTieu.entity.RedisToken;
-import com.example.AppQuanLiChiTieu.entity.User;
+import com.example.AppQuanLiChiTieu.model.User;
 import com.example.AppQuanLiChiTieu.exception.AppException;
 import com.example.AppQuanLiChiTieu.exception.ErrorCode;
 import com.example.AppQuanLiChiTieu.repository.RedisOtpRepository;
 import com.example.AppQuanLiChiTieu.repository.RedisRepository;
-import com.example.AppQuanLiChiTieu.repository.UserRepository;
+import com.example.AppQuanLiChiTieu.repository.RedisUserRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -38,38 +38,51 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationService {
-    UserRepository userRepository;
+    RedisUserRepository redisUserRepository;
     PasswordEncoder passwordEncoder;
     RedisRepository redisRepository;
-
-    ////////////////
     RedisOtpRepository redisOtpRepository;
     MailSentOtpService mailSentOtpService;
-    CloudinaryService cloudinaryService;
+    FileStorageService fileStorageService;
+
+    @NonFinal
+    @Value("${jwt.signerKey}")
+    protected String SIGNER_KEY;
+
+    @NonFinal
+    @Value("${jwt.valid-duration}")
+    protected long VALID_DURATION;
+
+    @NonFinal
+    @Value("${jwt.refreshable-duration}")
+    protected long REFRESHABLE_DURATION;
+
+    // ── Check Email ────────────────────────────────────────────────────────
 
     public boolean checkEmailExists(String email) {
-        return userRepository.existsByEmail(email);
+        return redisUserRepository.existsById(email);
     }
 
+    // ── Register + OTP ─────────────────────────────────────────────────────
+
     public void register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail()))
+        var optionalUser = redisUserRepository.findById(request.getEmail());
+        if (optionalUser.isPresent() && optionalUser.get().getIsActive()) {
             throw new AppException(ErrorCode.USER_EXISTED);
+        }
 
         if (request.getPassword() == null) {
             throw new AppException(ErrorCode.INVALID_PASSWORD);
         }
-        if (request.getConfirmPassword() != null && !request.getPassword().equals(request.getConfirmPassword())) {
-            throw new AppException(ErrorCode.PASSWORD_MISMATCH);
-        }
 
-        User user = new User();
+        User user = optionalUser.orElseGet(User::new);
+        user.setId(1); // Set hardcoded ID since it is a single user
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setFirstName(request.getFirstName());
@@ -77,22 +90,24 @@ public class AuthenticationService {
         user.setCurrency(request.getCurrency());
         user.setBirthday(request.getBirthday());
         user.setIsActive(false);
-        user.setGender(request.getGender() != null ? request.getGender().name() : null);
+        user.setIsPremium(false);
+        user.setGender(request.getGender());
         user.setPhone(request.getPhone());
         user.setCreatedAt(Instant.now());
 
         // Handle Avatar Upload
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
             try {
-                String avatarUrl = cloudinaryService.uploadImage(request.getAvatar());
+                String avatarUrl = fileStorageService.uploadImage(request.getAvatar());
                 user.setAvatarUrl(avatarUrl);
             } catch (java.io.IOException e) {
                 throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
             }
         }
 
-        userRepository.save(user);
+        redisUserRepository.save(user);
 
+        // Send OTP
         String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
 
         RedisOtp redisOtp = RedisOtp.builder()
@@ -102,11 +117,10 @@ public class AuthenticationService {
         redisOtpRepository.save(redisOtp);
 
         mailSentOtpService.sendOtp(request.getEmail(), request.getFirstName(), otp);
-
     }
 
     public void resendOtp(String email) {
-        User user = userRepository.findByEmail(email)
+        User user = redisUserRepository.findById(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
@@ -131,12 +145,12 @@ public class AuthenticationService {
         if (!redisOtp.getOtpCode().equals(request.getOtpCode()))
             throw new AppException(ErrorCode.OTP_INVALID);
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = redisUserRepository.findById(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         user.setIsActive(true);
         user.setLastLoginAt(Instant.now());
-        userRepository.save(user);
+        redisUserRepository.save(user);
 
         redisOtpRepository.delete(redisOtp);
 
@@ -147,38 +161,11 @@ public class AuthenticationService {
                 .authenticated(true)
                 .build();
     }
-    ///////////
 
-    @NonFinal
-    @Value("${jwt.signerKey}")
-    protected String SIGNER_KEY;
+    // ── Login ──────────────────────────────────────────────────────────────
 
-    @NonFinal
-    @Value("${jwt.valid-duration}")
-    protected long VALID_DURATION;
-
-    @NonFinal
-    @Value("${jwt.refreshable-duration}")
-    protected long REFRESHABLE_DURATION;
-
-    public IntrospectResponse introspect(IntrospectRequest request)
-            throws JOSEException, ParseException {
-        var token = request.getToken();
-        boolean isValid = true;
-
-        try {
-            verifyToken(token, false);
-        } catch (AppException e) {
-            isValid = false;
-        }
-
-        return IntrospectResponse.builder()
-                .valid(isValid)
-                .build();
-    }
-
-    public AuthenticationResponse authenticate(AuthenticationRequest request){
-        var user = userRepository.findByEmail(request.getEmail())
+    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        var user = redisUserRepository.findById(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
@@ -187,7 +174,7 @@ public class AuthenticationService {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         user.setLastLoginAt(Instant.now());
-        userRepository.save(user);
+        redisUserRepository.save(user);
 
         var token = generateToken(user);
 
@@ -197,10 +184,10 @@ public class AuthenticationService {
                 .build();
     }
 
-    /** Google Sign-In: verify the idToken with Google, find-or-create user, return app JWT */
+    // ── Google Login ───────────────────────────────────────────────────────
+
     @SuppressWarnings("unchecked")
     public AuthenticationResponse loginWithGoogle(GoogleLoginRequest request) {
-        // 1. Verify idToken via Google tokeninfo endpoint
         String url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + request.getIdToken();
         RestTemplate restTemplate = new RestTemplate();
         Map<String, Object> googleInfo;
@@ -222,37 +209,35 @@ public class AuthenticationService {
 
         if (email == null) throw new AppException(ErrorCode.UNAUTHENTICATED);
 
-        // 2. Find existing user or auto-create one
         final boolean[] isNewUserWrapper = {false};
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
+        User user = redisUserRepository.findById(email).orElseGet(() -> {
             isNewUserWrapper[0] = true;
             User newUser = new User();
+            newUser.setId(1);
             newUser.setEmail(email);
-            // random placeholder password - user will never log in with password via Google
             newUser.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
             newUser.setFirstName(firstName);
             newUser.setLastName(lastName);
             newUser.setAvatarUrl(avatarUrl);
             newUser.setCurrency("VND");
             newUser.setIsActive(true);
+            newUser.setIsPremium(false);
             newUser.setCreatedAt(Instant.now());
-            return userRepository.save(newUser);
+            redisUserRepository.save(newUser);
+            return newUser;
         });
 
         boolean isNewUser = isNewUserWrapper[0];
 
-        // Ensure user is active
         if (!user.getIsActive()) {
             user.setIsActive(true);
         }
         user.setLastLoginAt(Instant.now());
-        // Update avatar if it changed
         if (avatarUrl != null && (user.getAvatarUrl() == null || !user.getAvatarUrl().equals(avatarUrl))) {
             user.setAvatarUrl(avatarUrl);
         }
-        userRepository.save(user);
+        redisUserRepository.save(user);
 
-        // 3. Issue app JWT
         return AuthenticationResponse.builder()
                 .token(generateToken(user))
                 .authenticated(true)
@@ -260,68 +245,22 @@ public class AuthenticationService {
                 .build();
     }
 
-    private String generateToken(User user) {
-        JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+    // ── Token Management ───────────────────────────────────────────────────
 
-        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getEmail())
-                .issuer("LeVinhNguyenDepTraiCodeGioi")
-                .issueTime(new Date())
-                .expirationTime(new Date(
-                        Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()
-                ))
-                .jwtID(UUID.randomUUID().toString())
-                .claim("scope", buildScope(user))
-                .build();
-
-        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
-
-        JWSObject jwsObject = new JWSObject(header, payload);
+    public IntrospectResponse introspect(IntrospectRequest request)
+            throws JOSEException, ParseException {
+        var token = request.getToken();
+        boolean isValid = true;
 
         try {
-            jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
-            return jwsObject.serialize();
-        } catch (JOSEException e) {
-            log.error("Cannot create token", e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
-        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-
-        SignedJWT signedJWT = SignedJWT.parse(token);
-        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-        Date issueTime = signedJWT.getJWTClaimsSet().getIssueTime();
-
-        var verified = signedJWT.verify(verifier);
-
-        if (!verified)
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-
-        if (isRefresh) {
-            // For refresh, we allow expired tokens as long as they are within REFRESHABLE_DURATION
-            if (issueTime.toInstant().plus(REFRESHABLE_DURATION, ChronoUnit.SECONDS).isBefore(Instant.now()))
-                throw new AppException(ErrorCode.UNAUTHENTICATED);
-        } else {
-            // For normal requests, token must NOT be expired
-            if (!expiryTime.after(new Date()))
-                throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-
-        String jwtID = signedJWT.getJWTClaimsSet().getJWTID();
-        Objects.requireNonNull(jwtID , "JWT ID must not be null");
-        try {
-            if (redisRepository.existsById(jwtID)) {
-                throw new AppException(ErrorCode.UNAUTHENTICATED);
-            }
+            verifyToken(token, false);
         } catch (AppException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Redis connection error, skipping blacklist check: {}", e.getMessage());
+            isValid = false;
         }
 
-        return signedJWT;
+        return IntrospectResponse.builder()
+                .valid(isValid)
+                .build();
     }
 
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
@@ -361,7 +300,7 @@ public class AuthenticationService {
 
         var email = signedJWT.getJWTClaimsSet().getSubject();
 
-        var user = userRepository.findByEmail(email).orElseThrow(
+        var user = redisUserRepository.findById(email).orElseThrow(
                 () -> new AppException(ErrorCode.UNAUTHENTICATED)
         );
 
@@ -373,17 +312,10 @@ public class AuthenticationService {
                 .build();
     }
 
-    public void verifyResetOtp(VerifyOtpRequest request) {
-        RedisOtp redisOtp = redisOtpRepository.findById(request.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.OTP_INVALID));
-
-        if (!redisOtp.getOtpCode().equals(request.getOtpCode())) {
-            throw new AppException(ErrorCode.OTP_INVALID);
-        }
-    }
+    // ── Forgot / Reset Password ────────────────────────────────────────────
 
     public void forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = redisUserRepository.findById(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
@@ -395,6 +327,15 @@ public class AuthenticationService {
         redisOtpRepository.save(redisOtp);
 
         mailSentOtpService.sendForgotPasswordOtp(request.getEmail(), user.getFirstName(), otp);
+    }
+
+    public void verifyResetOtp(VerifyOtpRequest request) {
+        RedisOtp redisOtp = redisOtpRepository.findById(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.OTP_INVALID));
+
+        if (!redisOtp.getOtpCode().equals(request.getOtpCode())) {
+            throw new AppException(ErrorCode.OTP_INVALID);
+        }
     }
 
     public void resetPassword(ResetPasswordRequest request) {
@@ -410,19 +351,76 @@ public class AuthenticationService {
             throw new AppException(ErrorCode.OTP_INVALID);
         }
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = redisUserRepository.findById(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
+        redisUserRepository.save(user);
 
         redisOtpRepository.delete(redisOtp);
     }
 
-    private String buildScope(User user) {
-        StringJoiner stringJoiner = new StringJoiner(" ");
-        // Add roles if any
-        stringJoiner.add("ROLE_USER"); // Add a default role
-        return stringJoiner.toString();
+    // ── Private helpers ────────────────────────────────────────────────────
+
+    private String generateToken(User user) {
+        JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+
+        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
+                .subject(user.getEmail())
+                .issuer("PayMind")
+                .issueTime(new Date())
+                .expirationTime(new Date(
+                        Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()
+                ))
+                .jwtID(UUID.randomUUID().toString())
+                .claim("scope", "ROLE_USER")
+                .build();
+
+        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
+
+        JWSObject jwsObject = new JWSObject(header, payload);
+
+        try {
+            jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
+            return jwsObject.serialize();
+        } catch (JOSEException e) {
+            log.error("Cannot create token", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
+        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
+
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+        Date issueTime = signedJWT.getJWTClaimsSet().getIssueTime();
+
+        var verified = signedJWT.verify(verifier);
+
+        if (!verified)
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+
+        if (isRefresh) {
+            if (issueTime.toInstant().plus(REFRESHABLE_DURATION, ChronoUnit.SECONDS).isBefore(Instant.now()))
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+        } else {
+            if (!expiryTime.after(new Date()))
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        String jwtID = signedJWT.getJWTClaimsSet().getJWTID();
+        Objects.requireNonNull(jwtID, "JWT ID must not be null");
+        try {
+            if (redisRepository.existsById(jwtID)) {
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Redis connection error, skipping blacklist check: {}", e.getMessage());
+        }
+
+        return signedJWT;
     }
 }

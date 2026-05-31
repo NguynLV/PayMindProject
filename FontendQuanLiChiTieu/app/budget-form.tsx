@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
-    TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, useWindowDimensions
+    TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, useWindowDimensions, StatusBar, Dimensions
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BudgetService } from '@/services/budget.service';
 import { CategoryService, CategoryResponse } from '@/services/category.service';
 import { formatDate } from '@/utils/date';
 import { CustomDatePicker } from '@/components/common/CustomDatePicker';
+import { useToast } from '@/components/common/Toast';
+
+const { width: windowWidth } = Dimensions.get('window');
 
 const formatNumber = (n: string) => {
     const num = n.replace(/[^0-9]/g, '');
@@ -19,6 +22,7 @@ const formatNumber = (n: string) => {
 
 export default function BudgetFormScreen() {
     const router = useRouter();
+    const toast = useToast();
     const params = useLocalSearchParams();
     const isEdit = !!params.id;
 
@@ -30,6 +34,9 @@ export default function BudgetFormScreen() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const { width: windowWidth } = useWindowDimensions();
     const [currentCategoryPage, setCurrentCategoryPage] = useState(0);
+
+    const [isNameFocused, setIsNameFocused] = useState(false);
+    const [isAmountFocused, setIsAmountFocused] = useState(false);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -52,7 +59,6 @@ export default function BudgetFormScreen() {
                     setDate(d);
                 }
             } else if (params.name || params.amount || params.categoryId) {
-                // Pre-fill from AI suggestion or other sources
                 setName(params.name?.toString() || '');
                 setAmount(params.amount?.toString() || '');
                 setCategoryId(params.categoryId ? Number(params.categoryId) : undefined);
@@ -64,7 +70,6 @@ export default function BudgetFormScreen() {
                 
                 setDate(new Date());
             } else {
-                // Truly new budget from FAB
                 setName('');
                 setAmount('');
                 setCategoryId(undefined);
@@ -80,12 +85,11 @@ export default function BudgetFormScreen() {
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
 
-    // Smart suggestions (sorted low → high)
     const smartSuggestions = [
-        { label: 'Mức thấp', amount: 800_000, badge: 'Tiết kiệm nhất', badgeIcon: 'leaf' as const, badgeColor: '#10B981', bg: '#F0FDF4' },
-        { label: 'Dựa trên tháng trước', amount: 1_500_000, badge: 'Tiết kiệm 10%', badgeIcon: 'trending-down' as const, badgeColor: '#10B981', bg: '#EEF2FF' },
-        { label: 'Mức trung bình', amount: 2_000_000, badge: 'Phổ biến nhất', badgeIcon: 'information-circle' as const, badgeColor: '#3B82F6', bg: '#fff' },
-        { label: 'Mức cao', amount: 3_000_000, badge: 'Mức thoải mái', badgeIcon: 'star' as const, badgeColor: '#F59E0B', bg: '#FFFBEB' },
+        { label: 'Mức thấp', amount: 800000, badge: 'Tiết kiệm', badgeIcon: 'leaf-outline' as const, badgeColor: '#10B981', bg: '#F0FDF4' },
+        { label: 'Dựa trên tháng trước', amount: 1500000, badge: 'Đề xuất AI', badgeIcon: 'sparkles-outline' as const, badgeColor: '#6366F1', bg: '#EEF2FF' },
+        { label: 'Mức trung bình', amount: 2000000, badge: 'Phổ biến nhất', badgeIcon: 'analytics-outline' as const, badgeColor: '#3B82F6', bg: '#EFF6FF' },
+        { label: 'Mức cao', amount: 3000000, badge: 'Thoải mái', badgeIcon: 'star-outline' as const, badgeColor: '#F59E0B', bg: '#FFFBEB' },
     ];
 
     useFocusEffect(
@@ -105,17 +109,16 @@ export default function BudgetFormScreen() {
 
     const handleSave = async () => {
         if (!name.trim()) {
-            Alert.alert('Lỗi', 'Vui lòng nhập tên ngân sách');
+            toast.error('Thiếu thông tin kìa! 😅', 'Vui lòng nhập tên ngân sách nha');
             return;
         }
 
         const numericAmount = Number(amount.replace(/[^0-9]/g, ''));
         if (isNaN(numericAmount) || numericAmount <= 0) {
-            Alert.alert('Lỗi', 'Số tiền không hợp lệ');
+            toast.error('Ủa sai rồi! 🥲', 'Số tiền không hợp lệ, thử lại nha');
             return;
         }
 
-        // Validate date if Daily
         if (period === 'Daily') {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -123,7 +126,7 @@ export default function BudgetFormScreen() {
             selectedDate.setHours(0, 0, 0, 0);
 
             if (selectedDate < today) {
-                Alert.alert('Lỗi', 'Không được chọn ngày trong quá khứ');
+                toast.error('Ủa sai rồi! 📅', 'Không được chọn ngày trong quá khứ nha');
                 return;
             }
         }
@@ -147,7 +150,7 @@ export default function BudgetFormScreen() {
             }
             router.back();
         } catch (error: any) {
-            Alert.alert('Lỗi', error.response?.data?.message || `Không thể ${isEdit ? 'cập nhật' : 'tạo'} ngân sách`);
+            toast.error('Có lỗi xảy ra! ❌', error.response?.data?.message || `Không thể ${isEdit ? 'cập nhật' : 'tạo'} ngân sách rồi`);
         } finally {
             setLoading(false);
         }
@@ -156,9 +159,7 @@ export default function BudgetFormScreen() {
     const renderCategoryIcon = (cat: CategoryResponse) => {
         const isSelected = categoryId === cat.id;
         const iconName = (cat.icon || 'grid-outline') as any;
-        // Use category color as background, or fallback grey
-        const bgColor = cat.color || '#E5E7EB';
-        const iconColor = '#fff';
+        const catColor = cat.color || '#6366F1';
         return (
             <TouchableOpacity
                 key={cat.id}
@@ -168,21 +169,21 @@ export default function BudgetFormScreen() {
             >
                 <View style={[
                     styles.catCircle,
-                    { backgroundColor: isSelected ? cat.color + '40' : (cat.color || '#E5E7EB') + '15' },
-                    isSelected && { borderColor: cat.color, borderWidth: 2.5 }
+                    { backgroundColor: isSelected ? catColor + '15' : '#F8FAFC' },
+                    isSelected ? { borderColor: catColor, borderWidth: 2 } : { borderColor: '#E2E8F0', borderWidth: 1 }
                 ]}>
                     <Ionicons
                         name={iconName}
-                        size={26}
-                        color={isSelected ? cat.color : cat.color || '#6B7280'}
+                        size={22}
+                        color={isSelected ? catColor : '#6B7280'}
                     />
                     {isSelected && (
-                        <View style={[styles.checkBadge, { backgroundColor: cat.color }]}>
-                            <Ionicons name="checkmark" size={12} color="#fff" />
+                        <View style={[styles.checkBadge, { backgroundColor: catColor }]}>
+                            <Ionicons name="checkmark" size={10} color="#FFFFFF" />
                         </View>
                     )}
                 </View>
-                <Text style={[styles.catLabel, isSelected && { color: '#7C3AED', fontWeight: '700' }]}>
+                <Text style={[styles.catLabel, isSelected && { color: catColor, fontWeight: '700' }]} numberOfLines={1}>
                     {cat.name}
                 </Text>
             </TouchableOpacity>
@@ -191,12 +192,14 @@ export default function BudgetFormScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+            
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+                    <Ionicons name="chevron-back" size={24} color="#1F2937" />
                 </TouchableOpacity>
-                <Text style={styles.title}>{isEdit ? 'Sửa ngân sách' : 'Thêm ngân sách'}</Text>
+                <Text style={styles.title}>{isEdit ? 'Sửa Ngân Sách' : 'Thêm Ngân Sách'}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -204,53 +207,57 @@ export default function BudgetFormScreen() {
                 <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                     {/* Budget Name */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, isNameFocused && styles.cardFocused]}>
                         <Text style={styles.cardLabel}>Tên ngân sách</Text>
-                        <View style={styles.nameRow}>
-                            <Ionicons name="pencil" size={18} color="#7C3AED" style={{ marginRight: 8 }} />
+                        <View style={styles.inputRow}>
+                            <Ionicons name="document-text-outline" size={20} color={isNameFocused ? '#6366F1' : '#9CA3AF'} style={{ marginRight: 10 }} />
                             <TextInput
                                 style={styles.nameInput}
-                                placeholder="Ví dụ: Ăn uống, Mua sắm..."
+                                placeholder="Ví dụ: Ăn uống tháng 6, Mua sắm quần áo..."
                                 placeholderTextColor="#9CA3AF"
                                 value={name}
                                 onChangeText={setName}
                                 maxLength={100}
+                                onFocus={() => setIsNameFocused(true)}
+                                onBlur={() => setIsNameFocused(false)}
                             />
                         </View>
                     </View>
 
                     {/* Amount */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardLabel}>Số tiền hạn mức</Text>
+                    <View style={[styles.card, isAmountFocused && styles.cardFocused]}>
+                        <Text style={styles.cardLabel}>Hạn mức tối đa</Text>
                         <View style={styles.amountRow}>
-                            <Text style={styles.currencySymbol}>đ</Text>
+                            <Text style={[styles.currencySymbol, (amount || isAmountFocused) && { color: '#6366F1' }]}>₫</Text>
                             <TextInput
-                                style={styles.amountInput}
+                                style={[styles.amountInput, (amount || isAmountFocused) && { color: '#6366F1' }]}
                                 placeholder="0"
-                                placeholderTextColor="#7C3AED"
+                                placeholderTextColor="#D1D5DB"
                                 value={amount ? formatNumber(amount) : ''}
                                 onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
                                 keyboardType="numeric"
+                                onFocus={() => setIsAmountFocused(true)}
+                                onBlur={() => setIsAmountFocused(false)}
                             />
                         </View>
 
                         {/* Smart Suggestions */}
                         <View style={styles.suggestHeader}>
-                            <Ionicons name="sparkles" size={15} color="#7C3AED" />
-                            <Text style={styles.suggestTitle}>  Gợi ý thông minh</Text>
+                            <Ionicons name="sparkles" size={14} color="#6366F1" />
+                            <Text style={styles.suggestTitle}>Gợi ý hạn mức nhanh</Text>
                         </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
                             {smartSuggestions.map((s, i) => (
                                 <TouchableOpacity
                                     key={i}
-                                    style={[styles.suggestionCard, { backgroundColor: s.bg, borderWidth: s.bg === '#fff' ? 1 : 0, borderColor: '#E5E7EB' }]}
+                                    style={[styles.suggestionCard, { backgroundColor: s.bg }]}
                                     onPress={() => setAmount(String(s.amount))}
                                     activeOpacity={0.85}
                                 >
                                     <Text style={styles.suggestSubLabel}>{s.label}</Text>
-                                    <Text style={styles.suggestAmount}>{new Intl.NumberFormat('vi-VN').format(s.amount)}đ</Text>
+                                    <Text style={styles.suggestAmount}>{new Intl.NumberFormat('vi-VN').format(s.amount)} ₫</Text>
                                     <View style={styles.suggestBadge}>
-                                        <Ionicons name={s.badgeIcon} size={12} color={s.badgeColor} />
+                                        <Ionicons name={s.badgeIcon} size={11} color={s.badgeColor} />
                                         <Text style={[styles.suggestBadgeText, { color: s.badgeColor }]}> {s.badge}</Text>
                                     </View>
                                 </TouchableOpacity>
@@ -259,43 +266,44 @@ export default function BudgetFormScreen() {
                     </View>
 
                     {/* Period Toggle */}
-                    <Text style={styles.sectionLabel}>Khoảng thời gian</Text>
+                    <Text style={styles.sectionLabel}>Tần suất lặp lại</Text>
                     <View style={styles.periodRow}>
                         <TouchableOpacity
                             style={[styles.periodBtn, period === 'Monthly' && styles.periodBtnActive]}
                             onPress={() => setPeriod('Monthly')}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="calendar" size={16} color={period === 'Monthly' ? '#7C3AED' : '#9CA3AF'} />
-                            <Text style={[styles.periodBtnText, period === 'Monthly' && styles.periodBtnTextActive]}>  Hàng tháng</Text>
+                            <Ionicons name="calendar-outline" size={16} color={period === 'Monthly' ? '#6366F1' : '#6B7280'} />
+                            <Text style={[styles.periodBtnText, period === 'Monthly' && styles.periodBtnTextActive]}>Hàng tháng</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.periodBtn, period === 'Weekly' && styles.periodBtnActive]}
                             onPress={() => setPeriod('Weekly')}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="calendar-outline" size={16} color={period === 'Weekly' ? '#7C3AED' : '#9CA3AF'} />
-                            <Text style={[styles.periodBtnText, period === 'Weekly' && styles.periodBtnTextActive]}>  Hàng tuần</Text>
+                            <Ionicons name="git-commit-outline" size={16} color={period === 'Weekly' ? '#6366F1' : '#6B7280'} />
+                            <Text style={[styles.periodBtnText, period === 'Weekly' && styles.periodBtnTextActive]}>Hàng tuần</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.periodBtn, period === 'Daily' && styles.periodBtnActive]}
                             onPress={() => setPeriod('Daily')}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="time-outline" size={16} color={period === 'Daily' ? '#7C3AED' : '#9CA3AF'} />
-                            <Text style={[styles.periodBtnText, period === 'Daily' && styles.periodBtnTextActive]}>  Chọn ngày</Text>
+                            <Ionicons name="today-outline" size={16} color={period === 'Daily' ? '#6366F1' : '#6B7280'} />
+                            <Text style={[styles.periodBtnText, period === 'Daily' && styles.periodBtnTextActive]}>Một ngày</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Date Picker for Daily Period */}
                     {period === 'Daily' && (
                         <View style={styles.card}>
-                            <Text style={styles.cardLabel}>Ngày hiệu lực</Text>
+                            <Text style={styles.cardLabel}>Ngày hiệu lực hạn mức</Text>
                             <TouchableOpacity
                                 style={styles.dateSelector}
                                 onPress={() => setShowDatePicker(true)}
+                                activeOpacity={0.6}
                             >
-                                <Ionicons name="calendar-outline" size={20} color="#7C3AED" style={{ marginRight: 10 }} />
+                                <Ionicons name="calendar-outline" size={20} color="#6366F1" style={{ marginRight: 10 }} />
                                 <Text style={styles.dateValue}>{formatDate(date)}</Text>
                                 <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                             </TouchableOpacity>
@@ -312,7 +320,7 @@ export default function BudgetFormScreen() {
                     />
 
                     {/* Category Grid */}
-                    <Text style={styles.sectionLabel}>Chọn danh mục áp dụng</Text>
+                    <Text style={styles.sectionLabel}>Áp dụng cho danh mục nào?</Text>
                     <View>
                         <ScrollView
                             horizontal
@@ -338,32 +346,32 @@ export default function BudgetFormScreen() {
                                 }
 
                                 return pages.map((page, pageIndex) => (
-                                    <View key={pageIndex} style={{ width: windowWidth - 32, paddingHorizontal: 0 }}>
+                                    <View key={pageIndex} style={{ width: windowWidth - 32, paddingHorizontal: 16 }}>
                                         <View style={styles.catGrid}>
                                             {page.map((item, idx) => {
                                                 if (item.type === 'category') {
                                                     return renderCategoryIcon(item.data);
                                                 } else if (item.type === 'all') {
+                                                    const isAllSelected = categoryId === undefined;
                                                     return (
-                                                        <TouchableOpacity key="all-cat" style={styles.catItem} onPress={() => setCategoryId(undefined)}>
+                                                        <TouchableOpacity key="all-cat" style={styles.catItem} onPress={() => setCategoryId(undefined)} activeOpacity={0.8}>
                                                             <View style={[
                                                                 styles.catCircle,
-                                                                categoryId === undefined
-                                                                    ? { backgroundColor: '#7C3AED40', borderColor: '#7C3AED', borderWidth: 2.5 }
-                                                                    : { backgroundColor: '#F3F4F6' }
+                                                                { backgroundColor: isAllSelected ? '#6366F115' : '#F8FAFC' },
+                                                                isAllSelected ? { borderColor: '#6366F1', borderWidth: 2 } : { borderColor: '#E2E8F0', borderWidth: 1 }
                                                             ]}>
                                                                 <Ionicons
-                                                                    name="apps-outline"
-                                                                    size={26}
-                                                                    color={categoryId === undefined ? '#7C3AED' : '#6B7280'}
+                                                                    name="grid-outline"
+                                                                    size={22}
+                                                                    color={isAllSelected ? '#6366F1' : '#6B7280'}
                                                                 />
-                                                                {categoryId === undefined && (
-                                                                    <View style={[styles.checkBadge, { backgroundColor: '#7C3AED' }]}>
-                                                                        <Ionicons name="checkmark" size={12} color="#fff" />
+                                                                {isAllSelected && (
+                                                                    <View style={[styles.checkBadge, { backgroundColor: '#6366F1' }]}>
+                                                                        <Ionicons name="checkmark" size={10} color="#FFFFFF" />
                                                                     </View>
                                                                 )}
                                                             </View>
-                                                            <Text style={[styles.catLabel, categoryId === undefined && { color: '#7C3AED', fontWeight: '800' }]}>Tất cả</Text>
+                                                            <Text style={[styles.catLabel, isAllSelected && { color: '#6366F1', fontWeight: '700' }]}>Tất cả</Text>
                                                         </TouchableOpacity>
                                                     );
                                                 } else {
@@ -372,13 +380,12 @@ export default function BudgetFormScreen() {
                                                             key="add-cat-btn"
                                                             style={styles.catItem}
                                                             onPress={() => router.push('/category-form?type=EXPENSE' as any)}
+                                                            activeOpacity={0.8}
                                                         >
-                                                            <View style={[styles.catCircle, { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed' }]}>
-                                                                <Ionicons name="add" size={26} color="#6B7280" />
+                                                            <View style={[styles.catCircle, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderStyle: 'dashed' }]}>
+                                                                <Ionicons name="add" size={22} color="#6B7280" />
                                                             </View>
-                                                            <Text style={styles.catLabel} numberOfLines={1}>
-                                                                Thêm mới
-                                                            </Text>
+                                                            <Text style={styles.catLabel} numberOfLines={1}>Thêm mới</Text>
                                                         </TouchableOpacity>
                                                     );
                                                 }
@@ -417,11 +424,11 @@ export default function BudgetFormScreen() {
                         activeOpacity={0.85}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="#FFFFFF" />
                         ) : (
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.saveBtnText}>{isEdit ? 'Cập nhật ngân sách' : 'Tạo ngân sách'}</Text>
-                                <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={styles.saveBtnText}>{isEdit ? 'Lưu Thay Đổi' : 'Kích Hoạt Ngân Sách'}</Text>
+                                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
                             </View>
                         )}
                     </TouchableOpacity>
@@ -432,109 +439,54 @@ export default function BudgetFormScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8F9FB', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
-
-    header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, backgroundColor: '#F8F9FB'
-    },
+    container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, backgroundColor: '#F8FAFC' },
     backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
-    title: { fontSize: 18, fontWeight: '700', color: '#111827' },
+    title: { fontSize: 18, fontWeight: '700', color: '#1F2937' },
 
     formContainer: { paddingHorizontal: 16, paddingTop: 8 },
+    card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F1F5F9' },
+    cardFocused: { borderColor: '#6366F1' },
+    cardLabel: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 8 },
 
-    card: {
-        backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2
-    },
-    cardLabel: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10 },
+    inputRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+    nameInput: { flex: 1, fontSize: 15, color: '#1F2937', fontWeight: '500' },
 
-    nameRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 8 },
-    nameInput: { flex: 1, fontSize: 16, color: '#111827' },
+    amountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+    currencySymbol: { fontSize: 28, fontWeight: '700', color: '#CBD5E1', marginRight: 8 },
+    amountInput: { flex: 1, fontSize: 32, fontWeight: '700', color: '#1F2937', paddingVertical: 0, fontVariant: ['tabular-nums'] },
 
-    amountRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4 },
-    currencySymbol: { fontSize: 28, fontWeight: '700', color: '#7C3AED', marginRight: 6 },
-    amountInput: { flex: 1, fontSize: 32, fontWeight: '700', color: '#7C3AED', paddingVertical: 0 },
-
-    suggestHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 10 },
-    suggestTitle: { fontSize: 14, fontWeight: '700', color: '#7C3AED' },
-
-    suggestions: { flexDirection: 'row', gap: 10 },
-    suggestionCard: {
-        width: 140, padding: 14, borderRadius: 12
-    },
-    suggestionBlue: { backgroundColor: '#EEF2FF' },
-    suggestionWhite: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB' },
-    suggestSubLabel: { fontSize: 12, color: '#6B7280', marginBottom: 6 },
-    suggestAmount: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 8 },
+    suggestHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 12 },
+    suggestTitle: { fontSize: 13, fontWeight: '700', color: '#6366F1', marginLeft: 6 },
+    suggestionCard: { width: 130, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+    suggestSubLabel: { fontSize: 11, color: '#6B7280', marginBottom: 4, fontWeight: '500' },
+    suggestAmount: { fontSize: 14, fontWeight: '700', color: '#1F2937', marginBottom: 6, fontVariant: ['tabular-nums'] },
     suggestBadge: { flexDirection: 'row', alignItems: 'center' },
-    suggestBadgeText: { fontSize: 12, color: '#10B981', fontWeight: '500' },
+    suggestBadgeText: { fontSize: 10, fontWeight: '600' },
 
-    sectionLabel: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12, marginTop: 4 },
+    sectionLabel: { fontSize: 14, fontWeight: '700', color: '#1F2937', marginBottom: 12, marginTop: 4 },
 
-    periodRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-    periodBtn: {
-        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        paddingVertical: 14, borderRadius: 14, backgroundColor: '#fff',
-        borderWidth: 1.5, borderColor: '#E5E7EB',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1
-    },
-    periodBtnActive: { borderColor: '#7C3AED', backgroundColor: '#F5F3FF' },
-    periodBtnText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
-    periodBtnTextActive: { color: '#7C3AED' },
+    periodRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+    periodBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+    periodBtnActive: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
+    periodBtnText: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginLeft: 4 },
+    periodBtnTextActive: { color: '#6366F1' },
 
-    dateSelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
-    },
-    dateValue: {
-        flex: 1,
-        fontSize: 16,
-        color: '#111827',
-        fontWeight: '600',
-    },
+    dateSelector: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    dateValue: { flex: 1, fontSize: 15, color: '#1F2937', fontWeight: '600' },
 
-    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-    catItem: { width: 70, alignItems: 'center' },
-    catCircle: {
-        width: 60, height: 60, borderRadius: 30,
-        justifyContent: 'center', alignItems: 'center', marginBottom: 6,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
-        borderWidth: 2, borderColor: 'transparent'
-    },
-    catCircleSelected: {
-        borderColor: '#7C3AED',
-        borderWidth: 3,
-    },
-    checkBadge: {
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        backgroundColor: '#7C3AED',
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#fff',
-    },
-    catLabel: { fontSize: 12, color: '#6B7280', textAlign: 'center' },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    catItem: { width: (windowWidth - 32 - 36) / 4, alignItems: 'center', marginBottom: 12 },
+    catCircle: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', marginBottom: 6, position: 'relative' },
+    checkBadge: { position: 'absolute', top: -2, right: -2, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFFFFF' },
+    catLabel: { fontSize: 11, color: '#6B7280', textAlign: 'center', fontWeight: '500' },
 
-    footer: { padding: 16, paddingBottom: Platform.OS === 'ios' ? 24 : 16 },
-    saveBtn: {
-        backgroundColor: '#7C3AED', borderRadius: 18, paddingVertical: 18,
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4
-    },
-    saveBtnDisabled: { backgroundColor: '#C4B5FD', shadowOpacity: 0 },
-    saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    footer: { paddingHorizontal: 16, paddingBottom: Platform.OS === 'ios' ? 30 : 16, backgroundColor: '#F8FAFC' },
+    saveBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+    saveBtnDisabled: { backgroundColor: '#A5B4FC', shadowOpacity: 0 },
+    saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 
-    // Pagination Dots
     paginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: -10 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
-    dotActive: { backgroundColor: '#7C3AED', width: 20 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E2E8F0', marginHorizontal: 3 },
+    dotActive: { backgroundColor: '#6366F1', width: 14 },
 });

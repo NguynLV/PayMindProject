@@ -22,6 +22,10 @@ public class BudgetAlert {
     @Column(name = "AlertId", nullable = false)
     private Integer id;
 
+    @jakarta.validation.constraints.Size(max = 255)
+    @jakarta.persistence.Column(name = "OwnerEmail")
+    private String ownerEmail;
+
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)

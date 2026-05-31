@@ -22,3 +22,4 @@ public class RedisToken {
     @Builder.Default
     private Long expiredTime = 3600L;
 }
+

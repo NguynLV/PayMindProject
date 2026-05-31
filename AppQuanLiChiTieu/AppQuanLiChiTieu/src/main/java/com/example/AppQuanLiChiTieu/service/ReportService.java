@@ -4,11 +4,7 @@ import com.example.AppQuanLiChiTieu.dto.response.DailyStatResponse;
 import com.example.AppQuanLiChiTieu.dto.response.ReportSummaryResponse;
 import com.example.AppQuanLiChiTieu.dto.response.YearlyReportResponse;
 import com.example.AppQuanLiChiTieu.entity.Transaction;
-import com.example.AppQuanLiChiTieu.entity.User;
-import com.example.AppQuanLiChiTieu.exception.AppException;
-import com.example.AppQuanLiChiTieu.exception.ErrorCode;
 import com.example.AppQuanLiChiTieu.repository.TransactionRepository;
-import com.example.AppQuanLiChiTieu.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,26 +28,18 @@ import java.util.stream.Collectors;
 public class ReportService {
 
     TransactionRepository transactionRepository;
-    UserRepository userRepository;
     com.example.AppQuanLiChiTieu.repository.CategoryRepository categoryRepository;
     TransactionService transactionService;
 
-    private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-    }
-
     public YearlyReportResponse getYearlySummary(int year) {
-        User user = getCurrentUser();
-
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         ZonedDateTime startOfYear = ZonedDateTime.of(year, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault());
         ZonedDateTime endOfYear = ZonedDateTime.of(year, 12, 31, 23, 59, 59, 999999999, ZoneId.systemDefault());
         
         ZonedDateTime startOfPrevYear = ZonedDateTime.of(year - 1, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault());
         ZonedDateTime endOfPrevYear = ZonedDateTime.of(year - 1, 12, 31, 23, 59, 59, 999999999, ZoneId.systemDefault());
 
-        List<Transaction> transactions = transactionRepository.findByUserAndIsDeletedFalseOrderByTransactionDateDesc(user);
+        List<Transaction> transactions = transactionRepository.findByOwnerEmailAndIsDeletedFalseOrderByTransactionDateDesc(currentUserEmail);
         
         List<Transaction> currentYearTx = transactions.stream()
                 .filter(t -> !t.getTransactionDate().isBefore(startOfYear.toInstant()) && !t.getTransactionDate().isAfter(endOfYear.toInstant()))
@@ -109,15 +97,13 @@ public class ReportService {
     }
 
     public ReportSummaryResponse getMonthlySummary(int month, int year) {
-        User user = getCurrentUser();
-
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         YearMonth yearMonth = YearMonth.of(year, month);
         Instant startDate = yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant endDate = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
 
-        // Needs custom repo method to get all transactions for this month regardless of type
         List<Transaction> transactions = transactionRepository
-                .findByUserAndIsDeletedFalseOrderByTransactionDateDesc(user) // Fetching all is inefficient for scale but works for now, let's filter in memory
+                .findByOwnerEmailAndIsDeletedFalseOrderByTransactionDateDesc(currentUserEmail)
                 .stream()
                 .filter(t -> !t.getTransactionDate().isBefore(startDate) && !t.getTransactionDate().isAfter(endDate))
                 .collect(Collectors.toList());
@@ -154,14 +140,13 @@ public class ReportService {
     }
 
     public List<DailyStatResponse> getDailyStats(int month, int year) {
-        User user = getCurrentUser();
-
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         YearMonth yearMonth = YearMonth.of(year, month);
         Instant startDate = yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant endDate = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
 
         List<Transaction> transactions = transactionRepository
-                .findByUserAndIsDeletedFalseOrderByTransactionDateDesc(user)
+                .findByOwnerEmailAndIsDeletedFalseOrderByTransactionDateDesc(currentUserEmail)
                 .stream()
                 .filter(t -> !t.getTransactionDate().isBefore(startDate) && !t.getTransactionDate().isAfter(endDate))
                 .collect(Collectors.toList());
@@ -221,17 +206,16 @@ public class ReportService {
     }
 
     public List<com.example.AppQuanLiChiTieu.dto.response.TransactionResponse> getTransactionsByCategory(int categoryId, int month, int year) {
-        User user = getCurrentUser();
-        
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         YearMonth yearMonth = YearMonth.of(year, month);
         Instant startDate = yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant endDate = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
 
-        com.example.AppQuanLiChiTieu.entity.Category category = categoryRepository.findByIdAndUserAndIsDeletedFalse(categoryId, user)
+        com.example.AppQuanLiChiTieu.entity.Category category = categoryRepository.findByIdAndOwnerEmailAndIsDeletedFalse(categoryId, currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
-        return transactionRepository.findByUserAndCategoryAndIsDeletedFalseAndTransactionDateBetweenOrderByTransactionDateDesc(
-                user, category, startDate, endDate)
+        return transactionRepository.findByCategoryAndOwnerEmailAndIsDeletedFalseAndTransactionDateBetweenOrderByTransactionDateDesc(
+                category, currentUserEmail, startDate, endDate)
                 .stream()
                 .map(transactionService::toResponse)
                 .collect(Collectors.toList());

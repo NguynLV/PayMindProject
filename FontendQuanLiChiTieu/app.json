@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
     "scheme": "fontendquanlichitieu",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -38,9 +38,9 @@
           "image": "./src/assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#111827",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],

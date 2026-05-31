@@ -7,8 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Nationalized;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 
@@ -22,10 +20,10 @@ public class Category {
     @Column(name = "CategoryId", nullable = false)
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "UserId")
-    private User user;
+    @jakarta.validation.constraints.Size(max = 255)
+    @jakarta.persistence.Column(name = "OwnerEmail")
+    private String ownerEmail;
+
 
     @Size(max = 100)
     @NotNull

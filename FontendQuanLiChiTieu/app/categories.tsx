@@ -1,14 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert, RefreshControl, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { CategoryService, CategoryResponse } from '../src/services/category.service';
+import { useToast } from '../src/components/common/Toast';
 
 type TabType = 'EXPENSE' | 'INCOME';
 
 export default function CategoriesScreen() {
     const router = useRouter();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState<TabType>('EXPENSE');
     const [categories, setCategories] = useState<CategoryResponse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ export default function CategoriesScreen() {
             setCategories(data);
         } catch (error) {
             console.log("Error fetching categories", error);
-            Alert.alert("Lỗi", "Không thể tải danh sách nhóm");
+            toast.error('Không tải được!', 'Không thể tải danh sách nhóm lúc này.');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -39,35 +41,30 @@ export default function CategoriesScreen() {
     };
 
     const handleDelete = (id: number, name: string) => {
-        Alert.alert(
-            "Xóa nhóm",
-            `Bạn có chắc chắn muốn xóa nhóm "${name}" không?`,
-            [
-                { text: "Hủy", style: "cancel" },
-                {
-                    text: "Xóa",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setLoading(true);
-                            await CategoryService.deleteCategory(id);
-                            fetchCategories(); // reload data
-                            Alert.alert("Thành công", "Đã xóa nhóm.");
-                        } catch (error) {
-                            console.log("Lỗi xóa", error);
-                            Alert.alert("Lỗi", "Không thể xóa nhóm này.");
-                            setLoading(false);
-                        }
-                    }
+        toast.confirm(
+            `Xóa nhóm "${name}"?`,
+            'Xóa rồi không lấy lại được đâu nha!',
+            async () => {
+                try {
+                    setLoading(true);
+                    await CategoryService.deleteCategory(id);
+                    fetchCategories();
+                    toast.success('Xóa xong rồi! 👋', `Nhóm "${name}" đã được xóa.`);
+                } catch (error) {
+                    console.log("Lỗi xóa", error);
+                    toast.error('Xóa thất bại!', 'Không thể xóa nhóm này.');
+                    setLoading(false);
                 }
-            ]
+            },
+            'Xóa thôi',
+            'Thôi giữ lại'
         );
     };
 
     const renderItem = ({ item }: { item: CategoryResponse }) => (
         <View style={styles.catRow}>
-            <View style={[styles.catIcon, { backgroundColor: item.color + '20' }]}>
-                <Ionicons name={item.icon as any} size={28} color={item.color} />
+            <View style={[styles.catIcon, { backgroundColor: item.color ? item.color + '15' : '#F8FAFC' }]}>
+                <Ionicons name={item.icon as any} size={22} color={item.color || '#6366F1'} />
             </View>
             <Text style={styles.catName}>{item.name}</Text>
 
@@ -75,14 +72,16 @@ export default function CategoriesScreen() {
                 <TouchableOpacity
                     style={styles.actionBtn}
                     onPress={() => router.push({ pathname: '/category-form', params: { id: item.id, type: activeTab } })}
+                    activeOpacity={0.6}
                 >
-                    <Ionicons name="pencil" size={20} color="#3B82F6" />
+                    <Ionicons name="create-outline" size={18} color="#6366F1" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={styles.actionBtn}
+                    style={[styles.actionBtn, { backgroundColor: '#FEF2F2' }]}
                     onPress={() => handleDelete(item.id, item.name)}
+                    activeOpacity={0.6}
                 >
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
                 </TouchableOpacity>
             </View>
         </View>
@@ -90,35 +89,39 @@ export default function CategoriesScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
+            <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? 12 : 8 }]}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+                    <Ionicons name="chevron-back" size={24} color="#1F2937" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Quản lý Nhóm</Text>
-                <View style={{ width: 24 }} />
+                <Text style={styles.headerTitle}>Quản Lý Nhóm</Text>
+                <View style={{ width: 40 }} />
             </View>
 
-            {/* Tabs */}
+            {/* Segmented Controller Tab */}
             <View style={styles.tabsContainer}>
                 <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'EXPENSE' && styles.tabActiveExpense]}
+                    style={[styles.tabBtn, activeTab === 'EXPENSE' && styles.tabActive]}
                     onPress={() => { setLoading(true); setActiveTab('EXPENSE'); }}
+                    activeOpacity={0.8}
                 >
-                    <Text style={[styles.tabText, activeTab === 'EXPENSE' && styles.tabTextActive]}>Khoản chi</Text>
+                    <Text style={[styles.tabText, activeTab === 'EXPENSE' && styles.tabTextActive]}>Khoản Chi Tiêu</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'INCOME' && styles.tabActiveIncome]}
+                    style={[styles.tabBtn, activeTab === 'INCOME' && styles.tabActive]}
                     onPress={() => { setLoading(true); setActiveTab('INCOME'); }}
+                    activeOpacity={0.8}
                 >
-                    <Text style={[styles.tabText, activeTab === 'INCOME' && styles.tabTextActive]}>Khoản thu</Text>
+                    <Text style={[styles.tabText, activeTab === 'INCOME' && styles.tabTextActive]}>Khoản Thu Nhập</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* List */}
+            {/* Category List */}
             {loading && !refreshing ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#4F46E5" />
+                    <ActivityIndicator size="large" color="#6366F1" />
                 </View>
             ) : (
                 <FlatList
@@ -126,90 +129,97 @@ export default function CategoriesScreen() {
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContainer}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+                    showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Ionicons name="folder-open-outline" size={64} color="#D1D5DB" />
-                            <Text style={styles.emptyText}>Chưa có nhóm nào</Text>
+                            <View style={styles.emptyIconContainer}>
+                                <Ionicons name="folder-open-outline" size={48} color="#94A3B8" />
+                            </View>
+                            <Text style={styles.emptyText}>Chưa lập nhóm nào</Text>
+                            <Text style={styles.emptySubText}>Tạo các nhóm riêng biệt giúp bạn phân loại và kiểm soát các chi phí dễ dàng hơn.</Text>
                         </View>
                     }
-                    ItemSeparatorComponent={() => <View style={styles.divider} />}
                 />
             )}
 
-            {/* FAB Add */}
+            {/* Floating Action Button */}
             <TouchableOpacity
                 style={styles.fab}
                 onPress={() => router.push({ pathname: '/category-form', params: { type: activeTab } })}
+                activeOpacity={0.95}
             >
-                <Ionicons name="add" size={32} color="#fff" />
+                <Ionicons name="add" size={26} color="#FFFFFF" />
             </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
+    container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: '#fff',
-    },
-    backBtn: { padding: 4 },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937' },
 
     tabsContainer: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
-        paddingHorizontal: 16,
-        paddingBottom: 12,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 14,
+        marginHorizontal: 16,
+        marginVertical: 12,
+        padding: 3,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     tabBtn: {
         flex: 1,
         paddingVertical: 10,
         alignItems: 'center',
-        borderBottomWidth: 2,
-        borderBottomColor: '#E5E7EB',
+        borderRadius: 11,
     },
-    tabActiveExpense: { borderBottomColor: '#EF4444' },
-    tabActiveIncome: { borderBottomColor: '#10B981' },
-    tabText: { fontSize: 15, fontWeight: '500', color: '#6B7280' },
-    tabTextActive: { color: '#111827', fontWeight: 'bold' },
+    tabActive: { 
+        backgroundColor: '#FFFFFF', 
+        shadowColor: '#6366F1', 
+        shadowOffset: { width: 0, height: 2 }, 
+        shadowOpacity: 0.05, 
+        shadowRadius: 6, 
+        elevation: 1 
+    },
+    tabText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+    tabTextActive: { color: '#6366F1', fontWeight: '700' },
 
-    listContainer: { paddingVertical: 12, paddingHorizontal: 16 },
+    listContainer: { paddingHorizontal: 16, paddingBottom: 100 },
     catRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 16,
+        backgroundColor: '#FFFFFF',
+        padding: 14,
         borderRadius: 16,
         marginBottom: 12,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
-    catIcon: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-    catName: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111827' },
-    actions: { flexDirection: 'row', gap: 12 },
-    actionBtn: { padding: 8, backgroundColor: '#F3F4F6', borderRadius: 8 },
+    catIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+    catName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1F2937' },
+    actions: { flexDirection: 'row', gap: 8 },
+    actionBtn: { width: 34, height: 34, backgroundColor: '#EEF2FF', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
-    divider: { height: 8 },
-    emptyContainer: { alignItems: 'center', marginTop: 80 },
-    emptyText: { marginTop: 16, fontSize: 15, color: '#9CA3AF' },
+    emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, paddingHorizontal: 20 },
+    emptyIconContainer: { width: 80, height: 80, borderRadius: 24, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+    emptyText: { fontSize: 15, fontWeight: '700', color: '#1F2937', marginBottom: 8 },
+    emptySubText: { fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 18 },
 
     fab: {
         position: 'absolute',
         right: 20,
         bottom: 24,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#4F46E5',
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#6366F1',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
     }
 });

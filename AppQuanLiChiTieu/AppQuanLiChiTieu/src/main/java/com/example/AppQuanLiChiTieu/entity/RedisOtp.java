@@ -23,3 +23,4 @@ public class RedisOtp {
     @Builder.Default
     private Long expiredTime = 300L; // 5 minutes
 }
+

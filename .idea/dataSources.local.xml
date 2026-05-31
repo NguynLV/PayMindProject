@@ -1,46 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="dataSourceStorageLocal" created-in="IU-253.30387.90">
-    <data-source name="Project_Exe@localhost" uuid="564b6227-05e0-41ec-976e-978b8e7f1d5f">
-      <database-info product="Microsoft SQL Server" version="16.00.1165" jdbc-version="4.3" driver-name="Microsoft JDBC Driver 13.2 for SQL Server" driver-version="13.2.1.0" dbms="MSSQL" exact-version="16.0.1165" exact-driver-version="13.2">
-        <extra-name-characters>$#@</extra-name-characters>
-        <identifier-quote-string>&quot;</identifier-quote-string>
-      </database-info>
+  <component name="dataSourceStorageLocal" created-in="IU-261.23567.138">
+    <data-source name="0@localhost" uuid="25e06279-6be3-4b1c-bdec-a68519d349e8">
+      <database-info product="Redis Standalone" version="8.6.3" jdbc-version="4.2" driver-name="Redis JDBC Driver" driver-version="1.5" dbms="REDIS" exact-version="8.6.3" exact-driver-version="1.5" />
       <case-sensitivity plain-identifiers="mixed" quoted-identifiers="mixed" />
       <secret-storage>master_key</secret-storage>
-      <user-name>sa</user-name>
-      <schema-mapping>
-        <introspection-scope>
-          <node kind="database" qname="@">
-            <node kind="schema" qname="@" />
-          </node>
-        </introspection-scope>
-      </schema-mapping>
-    </data-source>
-    <data-source name="@localhost" uuid="f9945a64-9bc5-4c0f-b687-3c6881fd4a64">
-      <database-info product="Redis Standalone" version="8.4.0" jdbc-version="4.2" driver-name="Redis JDBC Driver" driver-version="1.5" dbms="REDIS" exact-version="8.4.0" exact-driver-version="1.5" />
-      <case-sensitivity plain-identifiers="mixed" quoted-identifiers="mixed" />
-      <secret-storage>master_key</secret-storage>
-      <auth-provider>no-auth</auth-provider>
       <schema-mapping>
         <introspection-scope>
           <node kind="schema" qname="@" />
-        </introspection-scope>
-      </schema-mapping>
-    </data-source>
-    <data-source name="Project_Exe1@localhost" uuid="bdd8303b-d6c1-4b51-9d1e-f33cf202784a">
-      <database-info product="Microsoft SQL Server" version="16.00.1165" jdbc-version="4.3" driver-name="Microsoft JDBC Driver 13.2 for SQL Server" driver-version="13.2.1.0" dbms="MSSQL" exact-version="16.0.1165" exact-driver-version="13.2">
-        <extra-name-characters>$#@</extra-name-characters>
-        <identifier-quote-string>&quot;</identifier-quote-string>
-      </database-info>
-      <case-sensitivity plain-identifiers="mixed" quoted-identifiers="mixed" />
-      <secret-storage>master_key</secret-storage>
-      <user-name>sa</user-name>
-      <schema-mapping>
-        <introspection-scope>
-          <node kind="database" qname="@">
-            <node kind="schema" qname="@" />
-          </node>
         </introspection-scope>
       </schema-mapping>
     </data-source>

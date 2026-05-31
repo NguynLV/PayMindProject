@@ -1,6 +1,5 @@
 package com.example.AppQuanLiChiTieu.dto.request;
 
-import com.example.AppQuanLiChiTieu.entity.Gender;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -26,21 +25,17 @@ public class RegisterRequest {
     @Size(min = 8, message = "INVALID_PASSWORD")
     String password;
 
-    @NotBlank(message = "Xác nhận mật khẩu không được để trống")
-    String confirmPassword;
-
     @NotBlank(message = "Email không được để trống")
     @Email(message = "INVALID_EMAIL")
     String email;
+
     LocalDate birthday;
 
     String currency;
 
-    Gender gender;
+    String gender;
 
-    @NotBlank(message = "Số điện thoại không được để trống")
-    @Size(min = 10, max = 15, message = "INVALID_PHONE")
     String phone;
-    
+
     org.springframework.web.multipart.MultipartFile avatar;
 }

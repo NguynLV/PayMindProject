@@ -59,6 +59,7 @@ export default function TabLayout() {
         name="add"
         options={{
           title: '',
+          tabBarStyle: { display: 'none' },
           tabBarIcon: ({ focused }) => (
             <View style={styles.fabWrapper}>
               <View style={[styles.fab, focused && styles.fabFocused]}>
@@ -71,14 +72,22 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 4. Ví tiền */}
+      {/* 4. Nhật ký */}
+      <Tabs.Screen
+        name="diary"
+        options={{
+          title: 'Nhật ký',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "book" : "book-outline"} size={22} color={color} />
+          ),
+        }}
+      />
+
+      {/* 5. Ví tiền (Hidden from bottom tab bar) */}
       <Tabs.Screen
         name="wallet"
         options={{
-          title: 'Ví tiền',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "wallet" : "wallet-outline"} size={22} color={color} />
-          ),
+          href: null,
         }}
       />
 
@@ -113,6 +122,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+      
   );
 }
 

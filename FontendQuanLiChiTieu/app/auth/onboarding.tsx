@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet,
-    Dimensions, FlatList, Animated, Image,
+    Dimensions, FlatList, Animated, Image, StatusBar, SafeAreaView, Platform
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,48 +11,42 @@ const { width, height } = Dimensions.get('window');
 const slides = [
     {
         key: '1',
-        bg: '#FFF5F5',
-        imageBg: '#4ECDC4',
+        bg: '#FFFFFF',
         image: require('../../assets/images/onboard1.png'),
-        badge1: { icon: 'wallet-outline' as const, color: '#2DD4BF' },
+        badge1: { icon: 'wallet-outline' as const, color: '#10B981' },
         badge2: { icon: 'cube-outline' as const, color: '#F59E0B' },
-        titleLine1: 'Ghi chép "vèo" cái là',
-        titleLine2: 'xong! 🚀',
-        titleColor: '#111827',
-        subtitle: 'Quên nỗi lo viêm màng túi đi. Theo dõi chi tiêu mượt như cách bạn lướt tóp tóp luôn!',
-        btnText: 'Tiếp theo  →',
-        btnColor: '#FF6B6B',
-        dotActiveColor: '#FF6B6B',
+        titleLine1: 'Ghi chép nhanh gọn',
+        titleLine2: 'trong chớp mắt! ⚡',
+        subtitle: 'Quên nỗi lo viêm màng túi đi. Theo theo chi tiêu mượt mà, trực quan ngay trên điện thoại của bạn!',
+        btnText: 'Tiếp tục',
+        btnColor: '#6366F1',
+        dotActiveColor: '#6366F1',
     },
     {
         key: '2',
-        bg: '#FAFFF5',
-        imageBg: '#4ECDC4',
+        bg: '#FFFFFF',
         image: require('../../assets/images/onboard2.png'),
         badge1: { icon: 'pie-chart-outline' as const, color: '#EF4444' },
         badge2: { icon: 'trending-up-outline' as const, color: '#3B82F6' },
-        titleLine1: 'Nhìn biểu đồ,',
-        titleLine2: 'thấu túi tiền! 🧐',
-        titleColor: '#3B82F6',
-        subtitle: 'Không còn đau đầu với con số. Xem biểu đồ cực nghệ, biết ngay tiền bay đi đâu!',
-        btnText: 'Tiếp theo nào  →',
-        btnColor: '#FBBF24',
-        dotActiveColor: '#3B82F6',
+        titleLine1: 'Báo cáo chi tiết,',
+        titleLine2: 'dễ dàng thấu hiểu! 📊',
+        subtitle: 'Nhìn biểu đồ là hiểu ngay túi tiền của mình. Thống kê thông minh giúp tối ưu hóa chi tiêu mỗi ngày!',
+        btnText: 'Khám phá tiếp',
+        btnColor: '#6366F1',
+        dotActiveColor: '#6366F1',
     },
     {
         key: '3',
-        bg: '#FFFBEB',
-        imageBg: '#F5E4CA',
+        bg: '#FFFFFF',
         image: require('../../assets/images/onboard3.png'),
         badge1: { icon: 'cash-outline' as const, color: '#F59E0B' },
         badge2: { icon: 'trophy-outline' as const, color: '#10B981' },
-        titleLine1: 'Tiết kiệm kiểu',
-        titleLine2: '"Pro"!',
-        titleColor: '#F59E0B',
-        subtitle: 'Đặt mục tiêu tậu Laptop, đi du đưa hay ăn sập quán quen. Lập ngân sách "vèo" cái là xong, săn ngay huy hiệu cực chất!',
-        btnText: 'KHÁM PHÁ NGAY',
-        btnColor: '#F59E0B',
-        dotActiveColor: '#2DD4BF',
+        titleLine1: 'Tích lũy tài sản',
+        titleLine2: 'như một chuyên gia! 👑',
+        subtitle: 'Đặt ngân sách mục tiêu, mua sắm thông minh và nhận huy hiệu tài chính cực cool cùng PayMind!',
+        btnText: 'Bắt đầu ngay',
+        btnColor: '#6366F1',
+        dotActiveColor: '#6366F1',
     },
 ];
 
@@ -67,39 +61,38 @@ export default function OnboardingScreen() {
             flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
             setCurrentIndex(currentIndex + 1);
         } else {
-            router.replace('/(tabs)');
+            router.replace('/auth/set-wallet-balance');
         }
     };
 
     const renderSlide = ({ item }: { item: typeof slides[0] }) => (
         <View style={[styles.slide, { backgroundColor: item.bg }]}>
             {/* Skip button */}
-            <TouchableOpacity style={styles.skipBtn} onPress={() => router.replace('/(tabs)')}>
+            <TouchableOpacity style={styles.skipBtn} onPress={() => router.replace('/auth/set-wallet-balance')} activeOpacity={0.7}>
                 <Text style={styles.skipText}>Bỏ qua</Text>
             </TouchableOpacity>
 
-            {/* Image card */}
+            {/* Image card wrapper */}
             <View style={styles.imageCard}>
-                <View style={[styles.imageBg, { backgroundColor: item.imageBg }]}>
+                <View style={styles.imageBg}>
                     <Image source={item.image} style={styles.heroImg} resizeMode="cover" />
                 </View>
                 {/* Badge top-right */}
                 <View style={[styles.badge, styles.badgeTR, { backgroundColor: item.badge1.color }]}>
-                    <Ionicons name={item.badge1.icon} size={22} color="#fff" />
+                    <Ionicons name={item.badge1.icon} size={20} color="#FFFFFF" />
                 </View>
                 {/* Badge left */}
                 <View style={[styles.badge, styles.badgeML, { backgroundColor: item.badge2.color }]}>
-                    <Ionicons name={item.badge2.icon} size={20} color="#fff" />
+                    <Ionicons name={item.badge2.icon} size={18} color="#FFFFFF" />
                 </View>
-                {/* Decorative circles */}
-                <View style={[styles.decoCircle, styles.decoTL]} />
-                <View style={[styles.decoCircle, styles.decoBR]} />
             </View>
 
             {/* Text section */}
             <View style={styles.textSection}>
-                <Text style={styles.titleEmoji}>✦</Text>
-                <Text style={[styles.title, { color: item.titleColor }]}>
+                <View style={styles.sparkIconBox}>
+                    <Ionicons name="sparkles" size={14} color="#6366F1" />
+                </View>
+                <Text style={styles.title}>
                     {item.titleLine1}{'\n'}{item.titleLine2}
                 </Text>
                 <Text style={styles.subtitle}>{item.subtitle}</Text>
@@ -108,8 +101,9 @@ export default function OnboardingScreen() {
     );
 
     return (
-        <View style={styles.root}>
+        <SafeAreaView style={styles.root}>
             <Stack.Screen options={{ headerShown: false }} />
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
             <FlatList
                 ref={flatListRef}
@@ -138,7 +132,7 @@ export default function OnboardingScreen() {
                             key={i}
                             style={[
                                 styles.dot,
-                                i === currentIndex && [styles.dotActive, { backgroundColor: slides[currentIndex].dotActiveColor }],
+                                i === currentIndex && [styles.dotActive, { backgroundColor: '#6366F1' }],
                             ]}
                         />
                     ))}
@@ -148,86 +142,84 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                     style={[styles.nextBtn, { backgroundColor: slides[currentIndex].btnColor }]}
                     onPress={goNext}
-                    activeOpacity={0.85}
+                    activeOpacity={0.9}
                 >
                     <Text style={styles.nextBtnText}>{slides[currentIndex].btnText}</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    root: { flex: 1 },
-    slide: { width, flex: 1, alignItems: 'center', paddingTop: 60 },
+    root: { flex: 1, backgroundColor: '#FFFFFF' },
+    slide: { width, flex: 1, alignItems: 'center', paddingTop: 40 },
     skipBtn: {
-        position: 'absolute', top: 56, right: 24,
-        backgroundColor: '#fff', borderRadius: 20,
+        position: 'absolute', top: 20, right: 20,
+        backgroundColor: '#F8FAFC', borderRadius: 12,
         paddingHorizontal: 16, paddingVertical: 8,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
+        borderWidth: 1, borderColor: '#F1F5F9'
     },
-    skipText: { fontSize: 14, color: '#374151', fontWeight: '600' },
+    skipText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
 
     // Image card
     imageCard: {
-        width: width * 0.78,
-        height: height * 0.38,
-        marginTop: 50,
-        borderRadius: 28,
-        overflow: 'visible',
+        width: width * 0.76,
+        height: height * 0.35,
+        marginTop: 60,
+        borderRadius: 24,
         position: 'relative',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 4,
     },
     imageBg: {
         width: '100%', height: '100%',
-        borderRadius: 28, overflow: 'hidden',
-        borderWidth: 3, borderColor: '#1F2937',
+        borderRadius: 24, overflow: 'hidden',
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1, borderColor: '#F1F5F9',
     },
     heroImg: { width: '100%', height: '100%' },
 
     badge: {
-        position: 'absolute', width: 48, height: 48, borderRadius: 24,
+        position: 'absolute', width: 42, height: 42, borderRadius: 21,
         justifyContent: 'center', alignItems: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2, shadowRadius: 6, elevation: 5,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1, shadowRadius: 6, elevation: 4,
     },
-    badgeTR: { top: -12, right: -16 },
-    badgeML: { top: '40%', left: -20 },
-
-    decoCircle: {
-        position: 'absolute', width: 28, height: 28, borderRadius: 14,
-        borderWidth: 3, borderColor: '#FCD34D', backgroundColor: 'transparent',
-    },
-    decoTL: { top: -14, left: 20 },
-    decoBR: { bottom: -10, right: 30, borderColor: '#F9A8D4' },
+    badgeTR: { top: -10, right: -12 },
+    badgeML: { top: '35%', left: -14 },
 
     // Text
-    textSection: { paddingHorizontal: 28, marginTop: 32, alignItems: 'center' },
-    titleEmoji: { fontSize: 14, color: '#9CA3AF', marginBottom: 4 },
+    textSection: { paddingHorizontal: 24, marginTop: 40, alignItems: 'center' },
+    sparkIconBox: { width: 28, height: 28, borderRadius: 10, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
     title: {
-        fontSize: 28, fontWeight: '800', textAlign: 'center',
-        lineHeight: 36, marginBottom: 14,
+        fontSize: 24, fontWeight: '800', textAlign: 'center',
+        lineHeight: 32, marginBottom: 12, color: '#1F2937'
     },
     subtitle: {
-        fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22,
+        fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 20, fontWeight: '500'
     },
 
     // Bottom
     bottomBar: {
-        paddingHorizontal: 24, paddingBottom: 44,
-        alignItems: 'center', backgroundColor: 'transparent',
+        paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+        alignItems: 'center', backgroundColor: '#FFFFFF',
     },
-    dots: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+    dots: { flexDirection: 'row', gap: 6, marginBottom: 24 },
     dot: {
-        width: 8, height: 8, borderRadius: 4,
-        backgroundColor: '#D1D5DB',
+        width: 6, height: 6, borderRadius: 3,
+        backgroundColor: '#E2E8F0',
     },
-    dotActive: { width: 24, borderRadius: 4 },
+    dotActive: { width: 16, borderRadius: 3 },
     nextBtn: {
-        width: '100%', height: 54, borderRadius: 27,
-        justifyContent: 'center', alignItems: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
+        width: '100%', height: 50, borderRadius: 16,
+        flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
     },
-    nextBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+    nextBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

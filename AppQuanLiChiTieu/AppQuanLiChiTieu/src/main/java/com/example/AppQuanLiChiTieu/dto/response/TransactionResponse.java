@@ -20,4 +20,6 @@ public class TransactionResponse {
     
     CategoryResponse category;
     WalletResponse wallet;
+    String imageUrl;
+    String mood;
 }

@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    StatusBar, ActivityIndicator, Image,
+    StatusBar, ActivityIndicator, Image, Platform, SafeAreaView
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import UserService, { UserProfile } from '@/services/user.service';
@@ -14,29 +14,21 @@ const GENDER_LABEL: Record<string, string> = {
     NAM: 'Nam', NU: 'Nữ', KHAC: 'Khác',
 };
 
-const CURRENCY_LABEL: Record<string, string> = {
-    VND: '🇻🇳  VND — Việt Nam Đồng',
-    USD: '🇺🇸  USD — US Dollar',
-    EUR: '🇪🇺  EUR — Euro',
-    JPY: '🇯🇵  JPY — Nhật Yên',
-    KRW: '🇰🇷  KRW — Won Hàn Quốc',
-    CNY: '🇨🇳  CNY — Nhân Dân Tệ',
-};
-
 function Avatar({ firstName, lastName, avatarUrl, onEdit }: { firstName: string; lastName: string; avatarUrl?: string; onEdit: () => void }) {
     const initials = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
     return (
         <TouchableOpacity style={styles.avatarContainer} onPress={onEdit} activeOpacity={0.9}>
             <View style={styles.avatar}>
-                {avatarUrl
-                    ? <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-                    : initials
-                        ? <Text style={styles.avatarText}>{initials}</Text>
-                        : <Ionicons name="person" size={50} color="rgba(255,255,255,0.9)" />
-                }
+                {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+                ) : initials ? (
+                    <Text style={styles.avatarText}>{initials}</Text>
+                ) : (
+                    <Ionicons name="person" size={40} color="#64748B" />
+                )}
             </View>
             <View style={styles.editBadge}>
-                <Ionicons name="pencil" size={12} color="#fff" />
+                <Ionicons name="camera-outline" size={14} color="#FFFFFF" />
             </View>
         </TouchableOpacity>
     );
@@ -46,11 +38,11 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
     return (
         <View style={styles.infoRow}>
             <View style={styles.infoIconWrap}>
-                <Ionicons name={icon as any} size={20} color="#5B50DF" />
+                <Ionicons name={icon as any} size={18} color="#6366F1" />
             </View>
             <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>{label}</Text>
-                <Text style={styles.infoValue}>{value || '—'}</Text>
+                <Text style={styles.infoValue}>{value || 'Chưa cập nhật'}</Text>
             </View>
         </View>
     );
@@ -81,7 +73,7 @@ export default function ProfileScreen() {
     if (loading) {
         return (
             <View style={styles.loading}>
-                <ActivityIndicator size="large" color="#5B50DF" />
+                <ActivityIndicator size="large" color="#6366F1" />
             </View>
         );
     }
@@ -93,106 +85,95 @@ export default function ProfileScreen() {
     };
 
     return (
-        <View style={styles.mainContainer}>
-            <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <SafeAreaView style={styles.mainContainer}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-            {/* The White background (replacing purple) */}
-            <View style={[styles.topWhiteBg, { height: 320 + insets.top }]} />
+            <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? 12 : 8 }]}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
+                    <Ionicons name="chevron-back" size={24} color="#1F2937" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Thông Tin Cá Nhân</Text>
+                <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => router.push({ pathname: '/edit-profile', params: { user: JSON.stringify(user) } })}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="create-outline" size={22} color="#1F2937" />
+                </TouchableOpacity>
+            </View>
 
-            <View style={[styles.safe, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 20) }]}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color="#111827" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Thông tin cá nhân</Text>
-                    <TouchableOpacity
-                        style={styles.iconBtn}
-                        onPress={() => router.push({ pathname: '/edit-profile', params: { user: JSON.stringify(user) } })}
-                    >
-                        <MaterialCommunityIcons name="pencil" size={20} color="#111827" />
-                    </TouchableOpacity>
+            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+                {/* Avatar section */}
+                <View style={styles.avatarSection}>
+                    <Avatar
+                        firstName={user?.firstName ?? ''}
+                        lastName={user?.lastName ?? ''}
+                        avatarUrl={user?.avatarUrl}
+                        onEdit={() => router.push({ pathname: '/edit-profile', params: { user: JSON.stringify(user) } })}
+                    />
+                    <Text style={styles.fullName}>{user?.firstName} {user?.lastName}</Text>
+                    <Text style={styles.email}>{user?.email}</Text>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                    {/* Avatar section */}
-                    <View style={styles.avatarSection}>
-                        <Avatar
-                            firstName={user?.firstName ?? ''}
-                            lastName={user?.lastName ?? ''}
-                            avatarUrl={user?.avatarUrl}
-                            onEdit={() => router.push({ pathname: '/edit-profile', params: { user: JSON.stringify(user) } })}
-                        />
-                        <Text style={styles.fullName}>{user?.firstName} {user?.lastName}</Text>
-                        <Text style={styles.email}>{user?.email}</Text>
-                    </View>
-
-                    {/* Info card */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardTitle}>THÔNG TIN CHUNG</Text>
-                        <InfoRow icon="person-outline" label="Họ" value={user?.lastName ?? ''} />
-                        <View style={styles.divider} />
-                        <InfoRow icon="person-outline" label="Tên" value={user?.firstName ?? ''} />
-                        <View style={styles.divider} />
-                        <InfoRow icon="call-outline" label="Số điện thoại" value={user?.phone ?? ''} />
-                        <View style={styles.divider} />
-                        <InfoRow icon="calendar-outline" label="Ngày sinh" value={formatDate(user?.birthday)} />
-                        <View style={styles.divider} />
-                        <View style={styles.divider} />
-                        <InfoRow icon="male-female-outline" label="Giới tính" value={GENDER_LABEL[user?.gender ?? ''] ?? ''} />
-                    </View>
-                    <View style={{ height: 20 }} />
-                </ScrollView>
-            </View>
-        </View>
+                {/* Info card */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>THÔNG TIN HỒ SƠ</Text>
+                    <InfoRow icon="person-outline" label="Họ" value={user?.lastName ?? ''} />
+                    <View style={styles.divider} />
+                    <InfoRow icon="person-outline" label="Tên" value={user?.firstName ?? ''} />
+                    <View style={styles.divider} />
+                    <InfoRow icon="calendar-outline" label="Ngày sinh" value={formatDate(user?.birthday)} />
+                    <View style={styles.divider} />
+                    <InfoRow icon="male-female-outline" label="Giới tính" value={GENDER_LABEL[user?.gender ?? ''] ?? ''} />
+                </View>
+                <View style={{ height: 20 }} />
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    mainContainer: { flex: 1, backgroundColor: '#ffffff' },
-    safe: { flex: 1 },
-    topWhiteBg: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#ffffff', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
+    mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
 
-    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937' },
 
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10 },
-    iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-    headerTitle: { flex: 1, color: '#111827', fontSize: 20, fontWeight: '700', textAlign: 'center' },
-
-    scroll: { paddingBottom: 12 },
-    avatarSection: { alignItems: 'center', paddingTop: 10, paddingBottom: 30 },
-    avatarContainer: { position: 'relative', marginBottom: 16 },
-    avatar: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#E0CCBC', justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: '#F3F4F6', overflow: 'hidden' },
-    avatarImg: { width: 120, height: 120, borderRadius: 60 },
-    avatarText: { fontSize: 44, fontWeight: '800', color: '#fff' },
+    scroll: { paddingBottom: 30, paddingHorizontal: 16, paddingTop: 16 },
+    avatarSection: { alignItems: 'center', paddingBottom: 24 },
+    avatarContainer: { position: 'relative', marginBottom: 14 },
+    avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#EEF2FF', overflow: 'hidden' },
+    avatarImg: { width: 100, height: 100, borderRadius: 50 },
+    avatarText: { fontSize: 36, fontWeight: '700', color: '#6366F1' },
     editBadge: {
         position: 'absolute',
-        bottom: 2,
-        right: 2,
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: '#10B981',
+        bottom: 0,
+        right: 0,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: '#6366F1',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: '#fff',
-        elevation: 4,
-        shadowColor: '#000',
+        borderColor: '#FFFFFF',
+        elevation: 2,
+        shadowColor: '#6366F1',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.15,
         shadowRadius: 4,
     },
-    fullName: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 6 },
-    email: { fontSize: 15, color: '#6B7280' },
+    fullName: { fontSize: 20, fontWeight: '800', color: '#1F2937', marginBottom: 4 },
+    email: { fontSize: 13, color: '#64748B', fontWeight: '500' },
 
-    card: { backgroundColor: '#fff', borderRadius: 30, marginHorizontal: 16, padding: 20, paddingVertical: 24, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 16 },
-    cardTitle: { fontSize: 13, fontWeight: '700', color: '#6B7280', letterSpacing: 0.5, marginBottom: 16, marginLeft: 4 },
+    card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, paddingVertical: 20, borderWidth: 1, borderColor: '#F1F5F9' },
+    cardTitle: { fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 16, marginLeft: 4 },
 
-    infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
-    infoIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+    infoIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
     infoContent: { flex: 1 },
-    infoLabel: { fontSize: 13, color: '#9CA3AF', marginBottom: 4 },
-    infoValue: { fontSize: 16, fontWeight: '700', color: '#111827' },
-    divider: { height: 1, backgroundColor: '#F3F4F6', marginLeft: 64 }
+    infoLabel: { fontSize: 11, color: '#64748B', fontWeight: '500', marginBottom: 2 },
+    infoValue: { fontSize: 14, fontWeight: '700', color: '#1F2937' },
+    divider: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 54 }
 });

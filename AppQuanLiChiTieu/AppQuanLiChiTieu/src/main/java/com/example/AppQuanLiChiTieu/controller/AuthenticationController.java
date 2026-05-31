@@ -98,4 +98,3 @@ public class AuthenticationController {
         authenticationService.resetPassword(request);
     }
 }
-

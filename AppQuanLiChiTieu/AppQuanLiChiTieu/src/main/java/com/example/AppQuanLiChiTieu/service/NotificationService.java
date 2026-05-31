@@ -2,9 +2,7 @@ package com.example.AppQuanLiChiTieu.service;
 
 import com.example.AppQuanLiChiTieu.dto.response.NotificationResponse;
 import com.example.AppQuanLiChiTieu.entity.Notification;
-import com.example.AppQuanLiChiTieu.entity.User;
 import com.example.AppQuanLiChiTieu.repository.NotificationRepository;
-import com.example.AppQuanLiChiTieu.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -21,71 +19,59 @@ import java.util.stream.Collectors;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationService {
     NotificationRepository notificationRepository;
-    UserRepository userRepository;
-
-    private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
 
     public List<NotificationResponse> getMyNotifications() {
-        User user = getCurrentUser();
-        return notificationRepository.findByUserOrderByCreatedAtDesc(user).stream()
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return notificationRepository.findByOwnerEmailOrderByCreatedAtDesc(currentUserEmail).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     public long getUnreadCount() {
-        User user = getCurrentUser();
-        return notificationRepository.countByUserAndIsReadFalse(user);
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return notificationRepository.countByOwnerEmailAndIsReadFalse(currentUserEmail);
     }
 
     @Transactional
     public void markAsRead(Integer id) {
-        User user = getCurrentUser();
-        Notification notification = notificationRepository.findById(id)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Notification notification = notificationRepository.findByIdAndOwnerEmail(id, currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
-        
-        if (notification.getUser().getId().equals(user.getId())) {
-            notification.setIsRead(true);
-            notificationRepository.save(notification);
-        }
+        notification.setIsRead(true);
+        notificationRepository.save(notification);
     }
 
     @Transactional
-    public void createNotification(User user, String title, String content, String type) {
+    public void createNotification(String title, String content, String type) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        createNotificationForUser(title, content, type, currentUserEmail);
+    }
+
+    @Transactional
+    public void createNotificationForUser(String title, String content, String type, String ownerEmail) {
         Notification notification = Notification.builder()
-                .user(user)
                 .title(title)
                 .content(content)
                 .type(type)
                 .isRead(false)
                 .createdAt(Instant.now())
+                .ownerEmail(ownerEmail)
                 .build();
         notificationRepository.save(notification);
     }
 
     @Transactional
     public void deleteNotification(Integer id) {
-        User user = getCurrentUser();
-        Notification notification = notificationRepository.findById(id)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Notification notification = notificationRepository.findByIdAndOwnerEmail(id, currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
-        
-        if (notification.getUser().getId().equals(user.getId())) {
-            notificationRepository.delete(notification);
-        }
+        notificationRepository.delete(notification);
     }
 
     public NotificationResponse getNotificationById(Integer id) {
-        User user = getCurrentUser();
-        Notification notification = notificationRepository.findById(id)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Notification notification = notificationRepository.findByIdAndOwnerEmail(id, currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
-
-        if (!notification.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("Access denied");
-        }
-
         return toResponse(notification);
     }
 

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 
 // Use 10.0.2.2 for Android Emulator, local IP for physical devices
-const BASE_URL = 'http://13.115.247.78/QuanLiChiTieu';
+const BASE_URL = 'http://192.168.1.41:8080/QuanLiChiTieu';
 
 export const TOKEN_KEY = 'auth_token';
 

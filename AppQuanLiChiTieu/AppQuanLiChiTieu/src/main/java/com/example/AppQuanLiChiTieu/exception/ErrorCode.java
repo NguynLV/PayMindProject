@@ -16,6 +16,7 @@ public enum ErrorCode {
     INVALID_PASSWORD(1004, "Invalid password", HttpStatus.BAD_REQUEST),
     PASSWORD_MISMATCH(1010, "Passwords do not match", HttpStatus.BAD_REQUEST),
     TRANSACTION_NOT_EXISTED(1011, "Transaction not existed", HttpStatus.NOT_FOUND),
+    PREMIUM_REQUIRED(1012, "Chức năng Premium! Nâng cấp ngay nha homie.", HttpStatus.FORBIDDEN),
     ;
 
 

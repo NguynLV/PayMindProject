@@ -4,18 +4,20 @@ import com.example.AppQuanLiChiTieu.dto.request.TransactionRequest;
 import com.example.AppQuanLiChiTieu.dto.response.TransactionResponse;
 import com.example.AppQuanLiChiTieu.entity.Category;
 import com.example.AppQuanLiChiTieu.entity.Transaction;
-import com.example.AppQuanLiChiTieu.entity.User;
 import com.example.AppQuanLiChiTieu.entity.Wallet;
 import com.example.AppQuanLiChiTieu.exception.AppException;
 import com.example.AppQuanLiChiTieu.exception.ErrorCode;
 import com.example.AppQuanLiChiTieu.repository.CategoryRepository;
 import com.example.AppQuanLiChiTieu.repository.TransactionRepository;
-import com.example.AppQuanLiChiTieu.repository.UserRepository;
 import com.example.AppQuanLiChiTieu.repository.WalletRepository;
+import com.example.AppQuanLiChiTieu.repository.RedisUserRepository;
+import com.example.AppQuanLiChiTieu.model.User;
 import lombok.extern.slf4j.Slf4j;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.multipart.MultipartFile;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,18 +41,13 @@ public class TransactionService {
     final TransactionRepository transactionRepository;
     final WalletRepository walletRepository;
     final CategoryRepository categoryRepository;
-    final UserRepository userRepository;
-    
+    final RedisUserRepository redisUserRepository;
+    final FileStorageService fileStorageService;
+
     final WalletService walletService;
     final CategoryService categoryService;
     final NotificationService notificationService;
     final BudgetService budgetService;
-
-    private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-    }
 
     public TransactionResponse toResponse(Transaction t) {
         return TransactionResponse.builder()
@@ -58,6 +55,8 @@ public class TransactionService {
                 .amount(t.getAmount())
                 .type(t.getType())
                 .description(t.getDescription())
+                .imageUrl(t.getImageUrl())
+                .mood(t.getMood())
                 .transactionDate(t.getTransactionDate())
                 .category(categoryService.toCategoryResponse(t.getCategory()))
                 .wallet(walletService.toWalletResponse(t.getWallet()))
@@ -65,33 +64,34 @@ public class TransactionService {
     }
 
     public List<TransactionResponse> getMyTransactions() {
-        User user = getCurrentUser();
-        return transactionRepository.findByUserAndIsDeletedFalseOrderByTransactionDateDesc(user)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return transactionRepository.findByOwnerEmailAndIsDeletedFalseOrderByTransactionDateDesc(currentUserEmail)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Transactional
     public TransactionResponse createTransaction(TransactionRequest request) {
-        User user = getCurrentUser();
-
-        Wallet wallet = walletRepository.findByIdAndUserAndIsDeletedFalse(request.getWalletId(), user)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Wallet wallet = walletRepository.findByIdAndOwnerEmailAndIsDeletedFalse(request.getWalletId(), currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Wallet not found"));
                 
-        Category category = categoryRepository.findByIdAndUserAndIsDeletedFalse(request.getCategoryId(), user)
+        Category category = categoryRepository.findByIdAndOwnerEmailAndIsDeletedFalse(request.getCategoryId(), currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
         // Create transaction
         Transaction t = new Transaction();
-        t.setUser(user);
         t.setWallet(wallet);
         t.setCategory(category);
         t.setAmount(request.getAmount());
         t.setType(request.getType() != null ? request.getType().toUpperCase() : "EXPENSE");
         t.setDescription(request.getDescription());
         t.setTransactionDate(request.getTransactionDate());
+        t.setImageUrl(request.getImageUrl());
+        t.setMood(request.getMood());
         t.setStatus("Completed");
         t.setIsDeleted(false);
         t.setCreatedAt(Instant.now());
+        t.setOwnerEmail(currentUserEmail);
 
         // Update wallet balance based on type
         if ("EXPENSE".equalsIgnoreCase(request.getType())) {
@@ -105,7 +105,7 @@ public class TransactionService {
 
         // Check if this transaction exceeds any budget
         if ("EXPENSE".equalsIgnoreCase(request.getType())) {
-            checkBudgetAndNotify(user, category, request.getTransactionDate());
+            checkBudgetAndNotify(category, request.getTransactionDate());
         }
 
         return toResponse(saved);
@@ -113,8 +113,8 @@ public class TransactionService {
 
     @Transactional
     public void deleteTransaction(Integer id) {
-        User user = getCurrentUser();
-        Transaction t = transactionRepository.findByIdAndUserAndIsDeletedFalse(id, user)
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Transaction t = transactionRepository.findByIdAndOwnerEmailAndIsDeletedFalse(id, currentUserEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_EXISTED));
 
         Wallet wallet = t.getWallet();
@@ -134,8 +134,15 @@ public class TransactionService {
     }
 
     public byte[] exportTransactionsToExcel() {
-        User user = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUserAndIsDeletedFalseOrderByTransactionDateDesc(user);
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        User user = redisUserRepository.findById(currentUserEmail)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        if (user.getIsPremium() == null || !user.getIsPremium()) {
+            throw new AppException(ErrorCode.PREMIUM_REQUIRED);
+        }
+
+        List<Transaction> transactions = transactionRepository.findByOwnerEmailAndIsDeletedFalseOrderByTransactionDateDesc(currentUserEmail);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Giao dịch");
@@ -182,17 +189,14 @@ public class TransactionService {
         }
     }
 
-    private void checkBudgetAndNotify(User user, Category category, Instant transactionDate) {
+    private void checkBudgetAndNotify(Category category, Instant transactionDate) {
         try {
-            // Find budgets for this category OR "All" (null category)
             List<com.example.AppQuanLiChiTieu.dto.response.BudgetResponse> budgets = budgetService.getMyBudgets();
             
             for (com.example.AppQuanLiChiTieu.dto.response.BudgetResponse budget : budgets) {
-                // Check if budget is relevant to this category and period
                 boolean isRelevantCategory = budget.getCategoryId() == null || budget.getCategoryId().equals(category.getId());
                 
                 if (isRelevantCategory && budget.getIsActive()) {
-                    // Check if it's over 100% or 80%
                     double percent = 0;
                     if (budget.getAmount().doubleValue() > 0) {
                         percent = (budget.getSpentAmount().doubleValue() / budget.getAmount().doubleValue()) * 100;
@@ -204,7 +208,6 @@ public class TransactionService {
                     if (percent >= 100) {
                         log.info("Budget exceeded 100%! Creating notification.");
                         notificationService.createNotification(
-                            user, 
                             "Vượt ngân sách: " + budget.getName(),
                             "Bạn đã chi tiêu vượt quá hạn mức " + String.format("%,.0f", budget.getAmount().doubleValue()) + "đ cho danh mục " + category.getName() + ".",
                             "BUDGET_ALERT"
@@ -212,7 +215,6 @@ public class TransactionService {
                     } else if (percent >= budget.getAlertThreshold().doubleValue()) {
                         log.info("Budget exceeded threshold ({}%)! Creating notification.", budget.getAlertThreshold());
                         notificationService.createNotification(
-                            user, 
                             "Sắp chạm hạn mức: " + budget.getName(),
                             "Chi tiêu cho " + category.getName() + " đã đạt " + String.format("%.1f", percent) + "% ngân sách của bạn.",
                             "BUDGET_ALERT"
@@ -226,6 +228,15 @@ public class TransactionService {
             // Don't fail the transaction if notification fails
             e.printStackTrace();
             System.err.println("Error checking budget notification: " + e.getMessage());
+        }
+    }
+
+    public String uploadImage(MultipartFile image) {
+        try {
+            return fileStorageService.uploadImage(image);
+        } catch (IOException e) {
+            log.error("Failed to upload transaction image", e);
+            throw new RuntimeException("Could not upload transaction image");
         }
     }
 }

@@ -33,4 +33,10 @@ public class TransactionRequest {
 
     @NotNull(message = "Transaction date is required")
     Instant transactionDate;
+
+    @Size(max = 1000)
+    String imageUrl;
+
+    @Size(max = 50)
+    String mood;
 }

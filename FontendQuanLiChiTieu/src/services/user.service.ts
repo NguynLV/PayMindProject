@@ -10,6 +10,7 @@ export interface UserProfile {
     avatarUrl?: string;
     currency: string;
     gender?: string;
+    isPremium?: boolean;
 }
 
 export interface UpdateProfileRequest {

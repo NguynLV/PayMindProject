@@ -22,10 +22,11 @@ public class Notification {
     @Column(name = "NotificationId", nullable = false)
     private Integer id;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "UserId", nullable = false)
-    private User user;
+    @jakarta.validation.constraints.Size(max = 255)
+    @jakarta.persistence.Column(name = "OwnerEmail")
+    private String ownerEmail;
+
+
 
     @Size(max = 200)
     @NotNull
@@ -55,3 +56,4 @@ public class Notification {
     @Column(name = "CreatedAt", nullable = false)
     private Instant createdAt = Instant.now();
 }
+

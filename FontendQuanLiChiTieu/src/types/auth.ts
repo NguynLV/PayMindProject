@@ -1,16 +1,14 @@
-import { Gender } from '@/constants/enums';
-
 export interface RegisterRequest {
     firstName: string;
     lastName: string;
     password: string;
     confirmPassword?: string;
     email: string;
-    birthday: string; // YYYY-MM-DD
-    currency: string;
-    gender: Gender;
-    phone: string;
-    avatar?: any; // Start with any for file/blob, refine later if needed
+    birthday?: string; // YYYY-MM-DD
+    currency?: string;
+    gender?: string;
+    phone?: string;
+    avatar?: any;
 }
 
 export interface VerifyOtpRequest {

@@ -71,4 +71,11 @@ public class AiController {
                 .result(aiService.suggestBudget(transactionService.getMyTransactions()))
                 .build();
     }
+
+    @GetMapping("/spending-pattern")
+    public ApiResponse<Map<String, Object>> getSpendingPattern() {
+        return ApiResponse.<Map<String, Object>>builder()
+                .result(aiService.analyzeSpendingPattern(transactionService.getMyTransactions()))
+                .build();
+    }
 }

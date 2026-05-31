@@ -20,11 +20,12 @@ const AuthService = {
         formData.append('lastName', data.lastName);
         formData.append('email', data.email);
         formData.append('password', data.password);
-        formData.append('confirmPassword', data.confirmPassword ?? data.password);
-        formData.append('birthday', data.birthday);
-        formData.append('phone', data.phone);
-        formData.append('gender', data.gender);
-        formData.append('currency', data.currency);
+        if (data.birthday) formData.append('birthday', data.birthday);
+        if (data.phone) {
+            formData.append('phone', data.phone);
+        }
+        if (data.gender) formData.append('gender', data.gender);
+        if (data.currency) formData.append('currency', data.currency);
 
         if (data.avatar) {
             // @ts-ignore
@@ -45,6 +46,10 @@ const AuthService = {
         return response.data.result;
     },
 
+    resendOtp: async (email: string): Promise<void> => {
+        await api.post('/auth/resend-otp', null, { params: { email } });
+    },
+
     verifyResetOtp: async (data: VerifyOtpRequest): Promise<void> => {
         await api.post('/auth/verify-reset-otp', data);
     },
@@ -58,7 +63,7 @@ const AuthService = {
         await api.post('/auth/forgot-password', data);
     },
 
-    checkEmail: async (email: string): Promise<{ exists: boolean }> => {
+    checkEmail: async (email: string): Promise<boolean> => {
         const response = await api.post<any>('/auth/check-email', { email });
         return response.data.result;
     },

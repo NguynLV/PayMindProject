@@ -20,4 +20,5 @@ public class UserProfileResponse {
     String avatarUrl;
     String currency;
     String gender;
+    Boolean isPremium;
 }

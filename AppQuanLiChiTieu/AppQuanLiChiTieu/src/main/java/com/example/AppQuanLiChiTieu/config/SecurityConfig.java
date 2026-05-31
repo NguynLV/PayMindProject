@@ -25,7 +25,8 @@ public class SecurityConfig {
         "/auth/verify", "/auth/token", "/auth/register",
         "/auth/introspect", "/auth/logout", "/auth/refresh",
         "/auth/forgot-password", "/auth/reset-password", "/auth/google",
-        "/auth/verify-reset-otp", "/auth/check-email"
+        "/auth/verify-reset-otp", "/auth/check-email", "/auth/resend-otp",
+        "/payments/webhook", "/payments/sepay"
     };
 
     @Autowired
