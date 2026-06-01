@@ -40,7 +40,7 @@ public class PaymentController {
     public ApiResponse<Void> processSepayWebhook(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestBody SepayWebhookRequest request) {
-        
+
         // Verify SePay authorization token
         if (sepayToken != null && !sepayToken.isEmpty()) {
             String expectedAuth = "Apikey " + sepayToken;
@@ -49,10 +49,13 @@ public class PaymentController {
             }
         }
 
-        // Map SepayWebhookRequest to WebhookPaymentRequest
+        // ✅ FIX: Kiểm tra theo thứ tự: code → transactionContent → content
         String description = request.getCode();
         if (description == null || description.isEmpty()) {
             description = request.getTransactionContent();
+        }
+        if (description == null || description.isEmpty()) {
+            description = request.getContent();
         }
 
         // Parse date
