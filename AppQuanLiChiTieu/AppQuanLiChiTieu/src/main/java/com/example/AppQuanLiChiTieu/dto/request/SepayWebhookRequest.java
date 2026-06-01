@@ -39,8 +39,9 @@ public class SepayWebhookRequest {
     @JsonProperty("reference_number")
     String referenceNumber;
 
-    @JsonProperty("content")
     String content;
+
+    String description;
 
     String body;
 }

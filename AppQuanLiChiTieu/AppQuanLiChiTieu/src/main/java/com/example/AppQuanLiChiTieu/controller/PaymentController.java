@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+@Slf4j
 @RestController
 @RequestMapping("/payments")
 @RequiredArgsConstructor
@@ -35,11 +37,14 @@ public class PaymentController {
         return ApiResponse.<Void>builder()
                 .build();
     }
-
     @PostMapping("/sepay")
     public ApiResponse<Void> processSepayWebhook(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestBody SepayWebhookRequest request) {
+
+        log.info("=== Received SePay webhook ===");
+        log.info("Code: {}, Content: {}, Description: {}", request.getCode(), request.getContent(), request.getDescription());
+        log.info("Amount: {}, TransferAmount: {}", request.getAmount(), request.getTransferAmount());
 
         // Verify SePay authorization token
         if (sepayToken != null && !sepayToken.isEmpty()) {
@@ -49,7 +54,7 @@ public class PaymentController {
             }
         }
 
-        // ✅ FIX: Kiểm tra theo thứ tự: code → transactionContent → content
+        // ✅ FIX: Kiểm tra theo thứ tự: code → transactionContent → content → description
         String description = request.getCode();
         if (description == null || description.isEmpty()) {
             description = request.getTransactionContent();
@@ -57,6 +62,11 @@ public class PaymentController {
         if (description == null || description.isEmpty()) {
             description = request.getContent();
         }
+        if (description == null || description.isEmpty()) {
+            description = request.getDescription();
+        }
+
+        log.info("Final description to process: {}", description);
 
         // Parse date
         Instant txDate = null;
@@ -66,20 +76,30 @@ public class PaymentController {
                 LocalDateTime localDateTime = LocalDateTime.parse(request.getTransactionDate(), formatter);
                 txDate = localDateTime.atZone(ZoneId.systemDefault()).toInstant();
             } catch (Exception e) {
+                log.warn("Failed to parse transaction date, using current time", e);
                 txDate = Instant.now();
             }
         } else {
             txDate = Instant.now();
         }
 
+        // ✅ FIX: Chọn amount từ transferAmount trước, nếu null thì dùng amount
+        Double finalAmount = request.getTransferAmount();
+        if (finalAmount == null || finalAmount == 0) {
+            finalAmount = request.getAmount();
+        }
+
+        log.info("Final amount to process: {}", finalAmount);
+
         WebhookPaymentRequest internalRequest = WebhookPaymentRequest.builder()
                 .transactionId(request.getId() != null ? request.getId().toString() : request.getReferenceNumber())
-                .amount(request.getTransferAmount() != null ? request.getTransferAmount() : request.getAmount())
+                .amount(finalAmount)
                 .description(description)
                 .bankCode(request.getGateway())
                 .transactionDate(txDate)
                 .build();
 
+        log.info("Calling paymentService.processWebhook with: {}", internalRequest);
         paymentService.processWebhook(internalRequest);
 
         return ApiResponse.<Void>builder()
