@@ -99,7 +99,7 @@ public class AiService {
                         === SPECIAL RULES ===
                         - REPORT intent: use relative dates → "hôm nay"=today, "hôm qua"=yesterday, "thứ 2 vừa rồi"=last Monday
                         - For "tháng trước" → month=%d, year=%d; for "năm nay" → viewMode=yearly, year=%d
-                        - For receipts/images: find "Tổng", "TOTAL", "Thanh toán", "Giá vé"; use item name as description
+                        - For images: If it's a receipt, find "Tổng", "TOTAL", "Thanh toán". If it's a photo of an item/food/drink, identify it and infer category.
                         - If input is ambiguous (confidence < 0.7), still return best guess but set confidence low
                         """,
                 now, yesterday, lastMonday, prevMonday,
@@ -148,7 +148,7 @@ public class AiService {
                                     .parts(List.of(
                                             GeminiRequest.Part.builder()
                                                     .text(getSystemPrompt(categories)
-                                                            + "\nExtract data from this receipt image.")
+                                                            + "\nAnalyze this image. If it is a receipt or bill, extract the total amount and use the main item/place as description. If it is a photo of food, a drink, or an object (e.g. a pizza, a cocktail), identify what it is, use it as the description, and infer the most appropriate category (e.g. 'Ăn uống', 'Giải trí'). If there's no price visible, you can leave amount as null or estimate a typical price in VND.")
                                                     .build(),
                                             GeminiRequest.Part.builder()
                                                     .inlineData(GeminiRequest.InlineData.builder()

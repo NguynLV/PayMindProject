@@ -104,14 +104,18 @@ public class PaymentService {
         if (user == null) {
             String norm = finalEmail.replaceAll("[^a-z0-9]", "");
             log.info("Attempting full scan for normalized match: {}", norm);
-            for (User u : redisUserRepository.findAll()) {
-                if (u.getEmail() == null) continue;
-                String candidate = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
-                if (candidate.equals(norm)) {
-                    user = u;
-                    log.info("Found user by normalized match: {} (candidate {})", u.getEmail(), candidate);
-                    break;
+            try {
+                for (User u : redisUserRepository.findAll()) {
+                    if (u.getEmail() == null) continue;
+                    String candidate = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                    if (candidate.equals(norm)) {
+                        user = u;
+                        log.info("Found user by normalized match: {} (candidate {})", u.getEmail(), candidate);
+                        break;
+                    }
                 }
+            } catch (Exception e) {
+                log.warn("Last resort failed to scan all users in Redis: {}", e.getMessage());
             }
         }
 
@@ -140,7 +144,7 @@ public class PaymentService {
      */
     private String extractEmailFromStrippedDomains(String description) {
         String[] tokens = description.trim().split("\\s+");
-        String[] knownDomains = {"gmail.com", "fpt.edu.vn", "yahoo.com", "outlook.com", "hotmail.com"};
+        String[] knownDomains = {"gmail.com", "fpt.edu.vn", "fot.edu.vn", "yahoo.com", "outlook.com", "hotmail.com"};
 
         for (String rawToken : tokens) {
             String token = rawToken.trim().toLowerCase().replaceAll("[^a-z0-9]", "");
@@ -169,6 +173,9 @@ public class PaymentService {
                 } else if (redisUserRepository.existsById(token + "@fpt.edu.vn")) {
                     log.info("Found user with token + @fpt.edu.vn: {}", token + "@fpt.edu.vn");
                     return token + "@fpt.edu.vn";
+                } else if (redisUserRepository.existsById(token + "@fot.edu.vn")) {
+                    log.info("Found user with token + @fot.edu.vn: {}", token + "@fot.edu.vn");
+                    return token + "@fot.edu.vn";
                 }
             }
         }
@@ -183,13 +190,17 @@ public class PaymentService {
         String normDesc = description.toLowerCase().replaceAll("[^a-z0-9]", "");
         log.info("Attempting Priority 3 (normalized substring matching). Normalized description: {}", normDesc);
 
-        for (User u : redisUserRepository.findAll()) {
-            if (u.getEmail() == null) continue;
-            String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
-            if (!normUserEmail.isEmpty() && normDesc.contains(normUserEmail)) {
-                log.info("Matched normalized email '{}' inside description", u.getEmail());
-                return u.getEmail();
+        try {
+            for (User u : redisUserRepository.findAll()) {
+                if (u.getEmail() == null) continue;
+                String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (!normUserEmail.isEmpty() && normDesc.contains(normUserEmail)) {
+                    log.info("Matched normalized email '{}' inside description", u.getEmail());
+                    return u.getEmail();
+                }
             }
+        } catch (Exception e) {
+            log.warn("Priority 3 failed to scan all users in Redis: {}", e.getMessage());
         }
 
         return null;
@@ -205,13 +216,18 @@ public class PaymentService {
         for (String rawToken : tokens) {
             String token = rawToken.trim().toLowerCase().replaceAll("[^a-z0-9]", "");
             if (token.length() >= 5) {
-                for (User u : redisUserRepository.findAll()) {
-                    if (u.getEmail() == null) continue;
-                    String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
-                    if (normUserEmail.startsWith(token) || normUserEmail.contains(token)) {
-                        log.info("Matched token '{}' to user email '{}'", token, u.getEmail());
-                        return u.getEmail();
+                try {
+                    for (User u : redisUserRepository.findAll()) {
+                        if (u.getEmail() == null) continue;
+                        String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                        if (normUserEmail.startsWith(token) || normUserEmail.contains(token)) {
+                            log.info("Matched token '{}' to user email '{}'", token, u.getEmail());
+                            return u.getEmail();
+                        }
                     }
+                } catch (Exception e) {
+                    log.warn("Priority 4 failed to scan all users in Redis: {}", e.getMessage());
+                    break; // If findAll fails, no point in trying again for the next token
                 }
             }
         }
