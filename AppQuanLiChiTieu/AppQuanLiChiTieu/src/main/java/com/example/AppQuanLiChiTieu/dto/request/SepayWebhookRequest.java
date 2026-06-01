@@ -22,6 +22,8 @@ public class SepayWebhookRequest {
     @JsonProperty("sub_account")
     String subAccount;
 
+    // ✅ IMPORTANT: Thêm @JsonProperty cho amount (MBBank gửi "amount" hoặc camelCase)
+    @JsonProperty("amount")
     Double amount;
 
     @JsonProperty("transfer_type")
@@ -39,8 +41,12 @@ public class SepayWebhookRequest {
     @JsonProperty("reference_number")
     String referenceNumber;
 
+    // ✅ IMPORTANT: Thêm @JsonProperty cho content (MBBank gửi "content")
+    @JsonProperty("content")
     String content;
 
+    // ✅ IMPORTANT: Thêm @JsonProperty cho description (MBBank gửi "description")
+    @JsonProperty("description")
     String description;
 
     String body;
