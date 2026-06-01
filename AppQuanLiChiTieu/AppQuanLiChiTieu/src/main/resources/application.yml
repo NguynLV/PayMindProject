@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: AppQuanLiChiTieu
+  jackson:
+    # ✅ Enable case-insensitive deserialization
+    deserialization:
+      accept-case-insensitive-properties: true
+      # Allow unmapped properties (ignore unknown fields)
+      fail-on-unknown-properties: false
+    # ✅ Use snake_case for property naming
+    property-naming-strategy: SNAKE_CASE
+    serialization:
+      write-dates-as-timestamps: false
+      indent-output: true
+  datasource:
+    url: jdbc:mysql://mysql:3306/paymin_db
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  redis:
+    host: redis
+    port: 6379
+    password: 123456
+    timeout: 60000ms
+    jedis:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+    database: 0
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    com.example.AppQuanLiChiTieu: DEBUG
+  pattern:
+    console: "%d{ISO8601} %highlight(%-5level) %logger{36} : %msg%n"
+
+gemini:
+  api-key: ${GEMINI_API_KEY:your_api_key_here}
+
+sepay:
+  token: ${SEPAY_TOKEN:sepay_secret_token}
