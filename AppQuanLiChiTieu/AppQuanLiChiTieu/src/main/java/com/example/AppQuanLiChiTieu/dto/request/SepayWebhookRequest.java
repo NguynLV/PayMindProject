@@ -1,5 +1,7 @@
 package com.example.AppQuanLiChiTieu.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -9,6 +11,7 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SepayWebhookRequest {
     Long id;
     String gateway;
@@ -22,15 +25,17 @@ public class SepayWebhookRequest {
     @JsonProperty("sub_account")
     String subAccount;
 
-    // ✅ Map "amount" field
+    // Accept many variants that might carry the amount
     @JsonProperty("amount")
+    @JsonAlias({ "amount", "transferAmount", "transfer_amount", "transferamount", "transfer_amt", "transferAmountVND" })
     Double amount;
 
     @JsonProperty("transfer_type")
     String transferType;
 
-    // ✅ Map "transfer_amount" field
+    // Keep a separate field if you prefer; accept aliases too
     @JsonProperty("transfer_amount")
+    @JsonAlias({ "transfer_amount", "transferAmount", "transferamount", "transfer_amt" })
     Double transferAmount;
 
     Double accumulated;
