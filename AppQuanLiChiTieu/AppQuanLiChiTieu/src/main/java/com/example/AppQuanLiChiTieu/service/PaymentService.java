@@ -73,32 +73,70 @@ public class PaymentService {
             throw new AppException(ErrorCode.INVALID_KEY);
         }
 
-        final String finalEmail = email;
+        // Normalize email consistently
+        final String finalEmail = email.trim().toLowerCase();
         log.info("Final resolved email: {}", finalEmail);
 
-        User user = redisUserRepository.findById(finalEmail)
-                .orElseThrow(() -> {
-                    log.warn("User with email {} not found in Redis", finalEmail);
-                    return new AppException(ErrorCode.USER_NOT_EXISTED);
-                });
+        // Robust lookup strategies
+        User user = redisUserRepository.findById(finalEmail).orElse(null);
 
+        // Try original-case / exact provided email
+        if (user == null) {
+            user = redisUserRepository.findById(email).orElse(null);
+        }
+
+        // Try simple variants (lowercase / remove dots in local-part for gmail-like addresses)
+        if (user == null) {
+            String lc = email.toLowerCase().trim();
+            if (!lc.equals(email)) {
+                user = redisUserRepository.findById(lc).orElse(null);
+            }
+            if (user == null && lc.contains("@")) {
+                int at = lc.indexOf('@');
+                String local = lc.substring(0, at).replaceAll("\\.", "");
+                String domain = lc.substring(at + 1);
+                String variant = local + "@" + domain;
+                user = redisUserRepository.findById(variant).orElse(null);
+            }
+        }
+
+        // Last resort: scan all users and match normalized strings (remove non-alphanumeric)
+        if (user == null) {
+            String norm = finalEmail.replaceAll("[^a-z0-9]", "");
+            log.info("Attempting full scan for normalized match: {}", norm);
+            for (User u : redisUserRepository.findAll()) {
+                if (u.getEmail() == null) continue;
+                String candidate = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (candidate.equals(norm)) {
+                    user = u;
+                    log.info("Found user by normalized match: {} (candidate {})", u.getEmail(), candidate);
+                    break;
+                }
+            }
+        }
+
+        if (user == null) {
+            log.warn("User with email {} not found in Redis (all lookup strategies)", finalEmail);
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+
+        // Mark premium and persist
         user.setIsPremium(true);
         redisUserRepository.save(user);
 
-        log.info("Successfully updated premium status for user: {}", finalEmail);
+        log.info("Successfully updated premium status for user: {}", user.getEmail());
 
         // Send a system notification
         notificationService.createNotificationForUser(
                 "Nâng cấp Premium thành công! 👑",
                 "Chào mừng homie đã lên đời Premium! Tất cả các tính năng AI Assistant, AI Budget và Xuất Excel đã được mở khóa! 🎉✨",
                 "SYSTEM",
-                finalEmail
+                user.getEmail()
         );
     }
 
     /**
      * Priority 2: Extract email from stripped email domains (e.g., "iphone0868369069gmailcom" → "iphone0868369069@gmail.com")
-     * Thêm xử lý tìm token chứa domain name từ email có sẵn trong DB
      */
     private String extractEmailFromStrippedDomains(String description) {
         String[] tokens = description.trim().split("\\s+");
@@ -140,13 +178,13 @@ public class PaymentService {
 
     /**
      * Priority 3: Fallback scan matching normalized email as substring of normalized description
-     * Scan tất cả users trong DB và check nếu normalized email nằm trong normalized description
      */
     private String extractEmailFromNormalizedDescription(String description) {
         String normDesc = description.toLowerCase().replaceAll("[^a-z0-9]", "");
         log.info("Attempting Priority 3 (normalized substring matching). Normalized description: {}", normDesc);
 
         for (User u : redisUserRepository.findAll()) {
+            if (u.getEmail() == null) continue;
             String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
             if (!normUserEmail.isEmpty() && normDesc.contains(normUserEmail)) {
                 log.info("Matched normalized email '{}' inside description", u.getEmail());
@@ -159,7 +197,6 @@ public class PaymentService {
 
     /**
      * Priority 4: Fallback scan using startsWith/contains for token prefix
-     * Tách tokens từ description và check xem có user nào có email prefix/substring match không
      */
     private String extractEmailFromTokenPrefix(String description) {
         log.info("Attempting Priority 4 (token startsWith/contains scanning).");
@@ -169,6 +206,7 @@ public class PaymentService {
             String token = rawToken.trim().toLowerCase().replaceAll("[^a-z0-9]", "");
             if (token.length() >= 5) {
                 for (User u : redisUserRepository.findAll()) {
+                    if (u.getEmail() == null) continue;
                     String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
                     if (normUserEmail.startsWith(token) || normUserEmail.contains(token)) {
                         log.info("Matched token '{}' to user email '{}'", token, u.getEmail());
