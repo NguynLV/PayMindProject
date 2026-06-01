@@ -42,7 +42,7 @@ public class PaymentService {
             throw new AppException(ErrorCode.INVALID_KEY);
         }
 
-        // Search for email pattern in transaction description
+        // Priority 1: Search for email pattern in transaction description
         Pattern pattern = Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
         Matcher matcher = pattern.matcher(description);
 
@@ -120,7 +120,7 @@ public class PaymentService {
             throw new AppException(ErrorCode.USER_NOT_EXISTED);
         }
 
-        // Mark premium and persist
+        // Mark premium and persist to Redis
         user.setIsPremium(true);
         redisUserRepository.save(user);
 
