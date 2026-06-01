@@ -15,7 +15,7 @@ public class JacksonConfig {
         ObjectMapper mapper = new ObjectMapper();
 
         // ✅ Auto convert camelCase to snake_case
-        mapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        // mapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 
         // ✅ Ignore unknown properties
         mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
