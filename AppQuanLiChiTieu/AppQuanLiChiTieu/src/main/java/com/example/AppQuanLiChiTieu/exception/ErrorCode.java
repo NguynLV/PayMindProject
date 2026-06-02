@@ -17,6 +17,7 @@ public enum ErrorCode {
     PASSWORD_MISMATCH(1010, "Passwords do not match", HttpStatus.BAD_REQUEST),
     TRANSACTION_NOT_EXISTED(1011, "Transaction not existed", HttpStatus.NOT_FOUND),
     PREMIUM_REQUIRED(1012, "Chức năng Premium! Nâng cấp ngay nha homie.", HttpStatus.FORBIDDEN),
+    WALLET_NAME_EXISTED(1013, "Tên ví đã tồn tại", HttpStatus.BAD_REQUEST),
     ;
 
 

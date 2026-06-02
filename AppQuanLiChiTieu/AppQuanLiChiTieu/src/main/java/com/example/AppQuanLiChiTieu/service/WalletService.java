@@ -57,6 +57,11 @@ public class WalletService {
 
     public WalletResponse createWallet(WalletRequest request) {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        if (walletRepository.findByOwnerEmailAndNameAndIsDeletedFalse(currentUserEmail, request.getName()).isPresent()) {
+            throw new AppException(ErrorCode.WALLET_NAME_EXISTED);
+        }
+
         Wallet wallet = new Wallet();
         wallet.setName(request.getName());
         wallet.setBalance(request.getBalance());
@@ -74,6 +79,11 @@ public class WalletService {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         Wallet wallet = walletRepository.findByIdAndOwnerEmailAndIsDeletedFalse(id, currentUserEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
+
+        Wallet existing = walletRepository.findByOwnerEmailAndNameAndIsDeletedFalse(currentUserEmail, request.getName()).orElse(null);
+        if (existing != null && !existing.getId().equals(id)) {
+            throw new AppException(ErrorCode.WALLET_NAME_EXISTED);
+        }
 
         wallet.setName(request.getName());
         wallet.setBalance(request.getBalance());

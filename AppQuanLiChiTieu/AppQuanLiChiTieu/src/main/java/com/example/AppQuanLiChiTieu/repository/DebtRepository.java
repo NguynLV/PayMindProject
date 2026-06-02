@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface DebtRepository extends JpaRepository<Debt, Integer> {
     List<Debt> findByOwnerEmailOrderByCreatedAtDesc(String ownerEmail);
     Optional<Debt> findByIdAndOwnerEmail(Integer id, String ownerEmail);
+    List<Debt> findByStatusAndDueDate(String status, java.time.LocalDate dueDate);
 }

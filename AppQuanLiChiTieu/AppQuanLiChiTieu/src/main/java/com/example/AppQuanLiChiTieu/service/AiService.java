@@ -130,6 +130,10 @@ public class AiService {
             return parseGeminiResponse(response);
         } catch (Exception e) {
             log.error("Error calling Gemini Text API: {}", e.getMessage());
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("429") || errorMsg.contains("403") || errorMsg.contains("400") || errorMsg.toLowerCase().contains("quota") || errorMsg.toLowerCase().contains("exhausted") || errorMsg.toLowerCase().contains("leaked") || errorMsg.toLowerCase().contains("expired"))) {
+                return Map.of("error", "API Key Gemini của bạn đã hết hạn hoặc bị lỗi (Hết Quota / Bị lộ). Vui lòng cập nhật API Key mới.");
+            }
             return Map.of("error", "AI Text Error: " + e.getMessage());
         }
     }
@@ -168,6 +172,10 @@ public class AiService {
             return parseGeminiResponse(response);
         } catch (Exception e) {
             log.error("Error calling Gemini Flash API: {}", e.getMessage());
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("429") || errorMsg.contains("403") || errorMsg.contains("400") || errorMsg.toLowerCase().contains("quota") || errorMsg.toLowerCase().contains("exhausted") || errorMsg.toLowerCase().contains("leaked") || errorMsg.toLowerCase().contains("expired"))) {
+                return Map.of("error", "API Key Gemini của bạn đã hết hạn hoặc bị lỗi (Hết Quota / Bị lộ). Vui lòng cập nhật API Key mới.");
+            }
             return Map.of("error", "AI Receipt Error: " + e.getMessage());
         }
     }

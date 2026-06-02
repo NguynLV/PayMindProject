@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface WalletRepository extends JpaRepository<Wallet, Integer> {
     List<Wallet> findByOwnerEmailAndIsDeletedFalse(String ownerEmail);
     Optional<Wallet> findByIdAndOwnerEmailAndIsDeletedFalse(Integer id, String ownerEmail);
+    Optional<Wallet> findByOwnerEmailAndNameAndIsDeletedFalse(String ownerEmail, String name);
 }

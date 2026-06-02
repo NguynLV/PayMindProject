@@ -7,6 +7,8 @@ server:
     max-swallow-size: 100MB
 
 spring:
+  config:
+    import: optional:file:.env
   application:
     name: AppQuanLiChiTieu
 
@@ -64,7 +66,7 @@ sepay:
 
 gemini:
   api:
-    key: ${GEMINI_API_KEY:AIzaSyBs9BLQaZWe45ybw3i4Bo-uFNHBYx88WaQ}
+    key: ${GEMINI_API_KEY:}
     url: ${GEMINI_API_URL:https://generativelanguage.googleapis.com}
 
 # Fallback for Feign

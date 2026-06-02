@@ -15,7 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.scheduling.annotation.Scheduled;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +28,7 @@ import java.util.stream.Collectors;
 public class DebtService {
 
     DebtRepository debtRepository;
+    NotificationService notificationService;
 
     public DebtResponse toResponse(Debt debt) {
         return DebtResponse.builder()
@@ -119,5 +123,37 @@ public class DebtService {
         Debt debt = debtRepository.findByIdAndOwnerEmail(id, currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Debt not found or access denied"));
         debtRepository.delete(debt);
+    }
+
+    /**
+     * Daily background job to remind users about debts due today.
+     * Scheduled to run every day at 8:00 AM.
+     */
+    @Scheduled(cron = "0 0 8 * * ?")
+    public void runDebtReminderCronJob() {
+        log.info("Starting Daily Debt Reminder Cron Job at {}", Instant.now());
+        LocalDate today = LocalDate.now();
+        List<Debt> dueDebts = debtRepository.findByStatusAndDueDate("UNPAID", today);
+
+        log.info("Found {} UNPAID debts due today.", dueDebts.size());
+
+        for (Debt debt : dueDebts) {
+            try {
+                String typeStr = "BORROWED".equalsIgnoreCase(debt.getType()) ? "Khoản bạn đi vay" : "Khoản bạn cho vay";
+                String title = "Đến hạn thanh toán sổ nợ 📅";
+                String message = String.format("%s (%s) của %s đến hạn hôm nay. Hãy kiểm tra và cập nhật trạng thái nhé!",
+                        typeStr, debt.getItemType(), debt.getDebtorName());
+
+                notificationService.createNotificationForUser(
+                        title,
+                        message,
+                        "DEBT_ALERT",
+                        debt.getOwnerEmail()
+                );
+            } catch (Exception e) {
+                log.error("Failed to send debt reminder for debt ID: {}", debt.getId(), e);
+            }
+        }
+        log.info("Finished Daily Debt Reminder Cron Job.");
     }
 }
