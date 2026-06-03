@@ -176,14 +176,14 @@ export default function TransactionsScreen() {
     const handleDelete = async (id: number) => {
         toast.confirm(
             'Xóa giao dịch này?',
-            'Xóa rồi không hoàn tác được đâu nha!',
+            'Bạn có chắc chắn muốn xóa giao dịch này không? Hành động này không thể hoàn tác.',
             async () => {
                 try {
                     const response = await TransactionService.deleteTransaction(id);
-                    toast.success('Xóa rồi! 👋', response.message || 'Giao dịch đã được xóa.');
+                    toast.success('Xóa thành công', response.message || 'Giao dịch đã được xóa.');
                     fetchInitialData();
                 } catch (error: any) {
-                    toast.error('Xóa thất bại!', error.message || 'Không thể xóa giao dịch.');
+                    toast.error('Xóa thất bại', error.message || 'Không thể xóa giao dịch.');
                 }
             },
             'Xóa thôi',
@@ -598,7 +598,7 @@ export default function TransactionsScreen() {
                 onClose={() => setShowDateRangeModal(false)}
                 onSelectRange={(start, end) => {
                     if (start > end) {
-                        toast.error('Ngày sai rồi!', 'Ngày bắt đầu không được sau ngày kết thúc nha.');
+                        toast.error('Ngày không hợp lệ', 'Ngày bắt đầu không được sau ngày kết thúc.');
                         return;
                     }
                     setFilterStartDate(start);

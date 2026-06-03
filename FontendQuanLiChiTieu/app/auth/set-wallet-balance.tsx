@@ -56,7 +56,7 @@ export default function SetWalletBalanceScreen() {
             }
         } catch (error: any) {
             console.log("Error loading default wallet:", error);
-            toast.error('Lỗi tải ví tiền', 'Không thể kết nối với máy chủ. Thử lại sau nhé!');
+            toast.error('Lỗi tải ví tiền', 'Không thể kết nối với máy chủ. Vui lòng thử lại sau.');
         } finally {
             setLoading(false);
         }
@@ -74,18 +74,18 @@ export default function SetWalletBalanceScreen() {
 
     const handleSubmit = async () => {
         if (!walletName.trim()) {
-            toast.error('Nhập tên ví nhé!', 'Vui lòng đặt tên cho ví tiền của bạn.');
+            toast.error('Thiếu thông tin', 'Vui lòng đặt tên cho ví tiền của bạn.');
             return;
         }
 
         const balance = balanceStr ? Number(balanceStr) : 0;
         if (isNaN(balance) || balance < 0) {
-            toast.error('Ủa sai rồi!', 'Vui lòng nhập số tiền ví hợp lệ.');
+            toast.error('Số tiền không hợp lệ', 'Vui lòng nhập số dư ví hợp lệ.');
             return;
         }
 
         if (!defaultWallet) {
-            toast.error('Lỗi dữ liệu!', 'Không tìm thấy thông tin ví mặc định. Vui lòng tải lại trang.');
+            toast.error('Lỗi dữ liệu', 'Không tìm thấy thông tin ví mặc định. Vui lòng tải lại trang.');
             return;
         }
 

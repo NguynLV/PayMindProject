@@ -37,19 +37,19 @@ export default function WalletScreen() {
 
     const checkDelete = (wallet: WalletResponse) => {
         if (wallet.isDefault) {
-            toast.warning('Không thể xóa! 😅', 'Ví mặc định không thể xóa được nha.');
+            toast.warning('Không thể xóa', 'Không thể xóa ví mặc định.');
             return;
         }
         toast.confirm(
             `Xóa ví "${wallet.name}"?`,
-            'Xóa rồi không lấy lại được đâu nha! Chắc chắn xóa chưa?',
+            'Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa ví này không?',
             async () => {
                 try {
                     await WalletService.deleteWallet(wallet.id);
                     loadWallets();
-                    toast.success('Xóa rồi! 👋', `Ví "${wallet.name}" đã được xóa.`);
+                    toast.success('Xóa thành công', `Ví "${wallet.name}" đã được xóa.`);
                 } catch (e: any) {
-                    toast.error('Xóa thất bại!', e.response?.data?.message || 'Không thể xóa ví lúc này.');
+                    toast.error('Xóa thất bại', e.response?.data?.message || 'Không thể xóa ví lúc này.');
                 }
             },
             'Xóa thôi',

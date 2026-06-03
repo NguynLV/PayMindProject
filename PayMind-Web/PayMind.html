@@ -1,196 +1,133 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PayMind - Quản lý chi tiêu thông minh với AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PayMind - Nền tảng Quản lí Tài chính cá nhân</title>
     <link rel="icon" type="image/png" href="logo.png">
-    <link rel="stylesheet" href="style.css?v=1.1">
+    
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="style.css?v=6.0">
+    
+    <!-- Professional Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
-
 <body>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
 
-    <nav>
-        <div class="container">
-            <div class="logo-wrapper">
-                <img src="logo.png" alt="PayMind Icon" class="nav-icon">
-                <div class="logo">Pay<span>Mind</span></div>
+    <!-- Subtle Aurora Glow Background -->
+    <div class="aurora-bg"></div>
+
+    <main class="container">
+        
+        <!-- Header -->
+        <header class="header animate-entrance" style="animation-delay: 0.1s;">
+            <div class="logo-box">
+                <img src="logo.png" alt="PayMind Logo">
             </div>
-            <ul class="nav-links">
-                <li><a href="#features">Tính năng</a></li>
-                <li><a href="#download" class="btn-primary">Tải ngay</a></li>
-            </ul>
-            <button class="menu-toggle" aria-label="Toggle Menu">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
-        </div>
-    </nav>
-
-    <header class="hero">
-        <div class="container grid">
-            <div class="hero-content reveal">
-                <div class="tagLine reveal">✨ Future of Finance</div>
-                <h1>Thế hệ quản lý <br>tài chính <span class="gradient-text">mới.</span></h1>
-                <p>PayMind là người trợ lý đắc lực giúp bạn theo dõi chi tiêu, lập kế hoạch ngân sách và nhận những lời
-                    khuyên thông minh để tối ưu hóa túi tiền của mình.</p>
-                <div class="cta-group">
-                    <a href="#download" class="btn-lg">Tải xuống APK</a>
-                    <a href="#features" class="btn-outline">Khám phá thêm</a>
+            <div class="header-content">
+                <h1 class="app-name">PayMind</h1>
+<!--                <span class="app-dev">Lê Vĩnh Nguyên</span>-->
+                <div class="badge-row">
+                    <span class="badge">Bản Trải Nghiệm Sớm</span>
+                    <span class="badge">Beta</span>
                 </div>
             </div>
-            <div class="hero-image reveal stagger-2">
-                <div class="glass-card">
-                    <img src="hero.png" alt="PayMind UI Preview">
+        </header>
+
+        <!-- CTA Download -->
+        <div class="animate-entrance" style="animation-delay: 0.2s;">
+            <a href="PayMind.apk" download="PayMind.apk" class="download-btn">
+                <div class="download-btn-left">
+                    <span class="download-title">Cài đặt Ứng dụng (APK)</span>
+                    <span class="download-subtitle">Hỗ trợ thiết bị Android</span>
+                </div>
+                <i class="ph ph-download-simple download-icon"></i>
+            </a>
+        </div>
+
+        <!-- Core Features -->
+        <section class="features-wrapper">
+            <h2 class="section-label animate-entrance" style="animation-delay: 0.3s;">Năng lực Cốt lõi</h2>
+
+            <!-- Card 1 -->
+            <div class="animate-entrance" style="animation-delay: 0.4s;">
+                <div class="feature-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2" data-tilt-perspective="1000">
+                    <div class="feature-icon-box">
+                        <i class="ph ph-scan"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Trích xuất Dữ liệu Tự động (OCR)</h3>
+                        <p>Hệ thống AI thị giác máy tính nhận diện hóa đơn và phân loại giao dịch độc lập.</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </header>
 
-    <section id="features" class="features">
-        <div class="container">
-            <h2 class="section-title reveal">Tính năng đột phá</h2>
-            <div class="feature-grid">
-                <div class="feature-card reveal stagger-1">
-                    <div class="icon">🤖</div>
-                    <h3>AI Assistant</h3>
-                    <p>Hỏi đáp và nhận lời khuyên tài chính cá nhân hóa từ AI Gemini.</p>
-                </div>
-                <div class="feature-card reveal stagger-2">
-                    <div class="icon">📊</div>
-                    <h3>Báo cáo trực quan</h3>
-                    <p>Biểu đồ chi tiết giúp bạn biết dòng tiền của mình đang đi đâu.</p>
-                </div>
-                <div class="feature-card reveal stagger-3">
-                    <div class="icon">💸</div>
-                    <h3>Quản lý ngân sách</h3>
-                    <p>Thiết lập hạn mức và nhận cảnh báo khi chi tiêu quá đà.</p>
-                </div>
-                <div class="feature-card reveal stagger-4">
-                    <div class="icon">G</div>
-                    <h3>Đăng nhập Google</h3>
-                    <p>Truy cập nhanh chóng, bảo mật thông tin với tài khoản Google.</p>
-                </div>
-                <div class="feature-card reveal stagger-5">
-                    <div class="icon">🏷️</div>
-                    <h3>Phân loại tự động</h3>
-                    <p>Hệ thống tự động nhận diện và nhóm các loại giao dịch thông minh.</p>
-                </div>
-                <div class="feature-card reveal stagger-6">
-                    <div class="icon">☁️</div>
-                    <h3>Đồng bộ đám mây</h3>
-                    <p>Dữ liệu được lưu trữ an toàn trên AWS, truy cập mọi lúc mọi nơi.</p>
+            <!-- Card 2 -->
+            <div class="animate-entrance" style="animation-delay: 0.5s;">
+                <div class="feature-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2" data-tilt-perspective="1000">
+                    <div class="feature-icon-box">
+                        <i class="ph ph-handshake"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Quản trị Công nợ Toàn diện</h3>
+                        <p>Theo dõi luồng tiền cho vay/tạm ứng và hệ thống tự động hóa mẫu nhắc thanh toán.</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <section id="download" class="download-section">
-        <div class="container">
-            <div class="download-card reveal">
-                <h2>Sẵn sàng <span class="gradient-text">PayMind?</span></h2>
-                <p>Tải xuống bản APK dành riêng cho Android và bắt đầu quản lý chi tiêu ngay hôm nay.</p>
-                <a href="https://expo.dev/artifacts/eas/r93ExSANm5hER9KRQh97mN.apk" class="btn-download">
-                    <span class="btn-icon">📦</span>
-                    <span class="btn-text">
-                        <small>Download for</small>
-                        <strong>Android APK</strong>
-                    </span>
-                </a>
-                <p class="version">Version 1.0.0 (Beta)</p>
+            <!-- Card 3 -->
+            <div class="animate-entrance" style="animation-delay: 0.6s;">
+                <div class="feature-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2" data-tilt-perspective="1000">
+                    <div class="feature-icon-box">
+                        <i class="ph ph-chart-line-up"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Phân tích Hành vi Chi tiêu</h3>
+                        <p>Mô hình AI dự báo dòng tiền và gán nhãn cảm xúc giao dịch theo thời gian thực.</p>
+                    </div>
+                </div>
             </div>
-        </div>
-    </section>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 PayMind "Nguyn Eo Sờ Vy DEV".</p>
-        </div>
-    </footer>
+            <!-- Card 4 -->
+            <div class="animate-entrance" style="animation-delay: 0.7s;">
+                <div class="feature-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare="true" data-tilt-max-glare="0.2" data-tilt-perspective="1000">
+                    <div class="feature-icon-box">
+                        <i class="ph ph-brain"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Cố vấn Tài chính Khách hàng</h3>
+                        <p>Tích hợp lõi AI Gemini hỗ trợ tư vấn cấu trúc danh mục và hoạch định ngân sách cá nhân.</p>
+                    </div>
+                </div>
+            </div>
 
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer animate-entrance" style="animation-delay: 0.8s;">
+            &copy; 2026 PayMind Hệ thống Quản trị Tài chính.<br>Phát triển bởi Lê Vĩnh Nguyên.
+        </footer>
+
+    </main>
+
+    <!-- Vanilla-Tilt.js for Mobile 3D Effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    
+    <!-- Explicit Initialization for Mobile Gyroscope Support (if allowed by browser) -->
     <script>
-        // Intersection Observer for scroll animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
-                }
-            });
-        }, { threshold: 0.1 });
-
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-        // Nav scroll effect
-        const nav = document.querySelector('nav');
-        const heroImage = document.querySelector('.glass-card');
-
-        window.addEventListener('scroll', () => {
-            // Header effect
-            if (window.scrollY > 50) {
-                nav.classList.add('scrolled');
-            } else {
-                nav.classList.remove('scrolled');
-            }
-
-            // Parallax effect
-            const scroll = window.pageYOffset;
-            if (window.innerWidth > 968) {
-                heroImage.style.transform = `translateY(${scroll * 0.1}px) rotateX(${scroll * 0.02}deg)`;
-            }
+        VanillaTilt.init(document.querySelectorAll(".feature-card"), {
+            max: 15,
+            speed: 400,
+            glare: true,
+            "max-glare": 0.2,
+            gyroscope: true, // Enables mobile tilt via device orientation
+            perspective: 1000
         });
-
-        // Mobile Menu Toggle
-        const menuToggle = document.querySelector('.menu-toggle');
-        const navLinks = document.querySelector('.nav-links');
-
-        menuToggle.addEventListener('click', () => {
-            navLinks.classList.toggle('active');
-            menuToggle.classList.toggle('open');
-        });
-
-        // Close menu when clicking a link
-        document.querySelectorAll('.nav-links a').forEach(link => {
-            link.addEventListener('click', () => {
-                navLinks.classList.remove('active');
-                menuToggle.classList.remove('open');
-            });
-        });
-
-        // Falling Money logic
-        function createMoney() {
-            const hero = document.querySelector('.hero');
-            if (!hero) return;
-            
-            const money = document.createElement('div');
-            money.classList.add('money-drop');
-            const icons = ['💸', '💵', '💰', '✨', '💎'];
-            money.innerText = icons[Math.floor(Math.random() * icons.length)];
-            
-            const startX = Math.random() * hero.offsetWidth;
-            const duration = Math.random() * 3 + 2; // 2s - 5s
-            const size = Math.random() * 20 + 20; // 20px - 40px
-            
-            money.style.left = startX + 'px';
-            money.style.animationDuration = duration + 's';
-            money.style.fontSize = size + 'px';
-            money.style.opacity = Math.random() * 0.5 + 0.3;
-            
-            hero.appendChild(money);
-            
-            setTimeout(() => {
-                money.remove();
-            }, duration * 1000);
-        }
-
-        setInterval(createMoney, 300);
     </script>
 </body>
-
 </html>

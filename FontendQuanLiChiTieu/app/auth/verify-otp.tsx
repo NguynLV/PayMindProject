@@ -16,13 +16,13 @@ export default function VerifyOtpScreen() {
 
     const handleVerify = async () => {
         if (!otpCode || !email) {
-            toast.error('Thiếu thông tin!', 'Không tìm thấy thông tin email.');
+            toast.error('Thiếu thông tin', 'Không tìm thấy thông tin email.');
             return;
         }
 
         const trimmedOtp = otpCode.trim();
         if (trimmedOtp.length !== 6) {
-            toast.error('Ủa thiếu số kìa!', 'Nhập đủ 6 chữ số của mã OTP nha.');
+            toast.error('Mã OTP không hợp lệ', 'Vui lòng nhập đủ 6 chữ số của mã OTP.');
             return;
         }
 
@@ -35,12 +35,12 @@ export default function VerifyOtpScreen() {
                 await saveToken(response.token);
                 router.replace('/auth/register-success');
             } else {
-                toast.error('Sai mã rồi!', 'Mã OTP không chính xác. Kiểm tra lại hộp thư nha.');
+                toast.error('Mã OTP không chính xác', 'Mã OTP không chính xác. Vui lòng kiểm tra lại.');
             }
         } catch (error: any) {
             setLoading(false);
             const errorMsg = error?.response?.data?.message || error.message || 'Xác thực thất bại';
-            toast.error('Có lỗi xảy ra!', errorMsg);
+            toast.error('Xác thực thất bại', errorMsg);
         }
     };
 

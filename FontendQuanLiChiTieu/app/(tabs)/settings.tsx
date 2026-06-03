@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Buffer } from 'buffer';
 import { useToast } from '../../src/components/common/Toast';
+import * as Updates from 'expo-updates';
 
 const formatVND = (n: number) => {
     return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n) + ' ₫';
@@ -129,7 +130,7 @@ export default function ProfileScreen() {
 
     const handleExportExcel = async () => {
         if (user && !user.isPremium) {
-            toast.error('Chức năng Premium! 👑', 'Vui lòng nâng cấp Premium để sử dụng nha homie!');
+            toast.error('Chức năng Premium', 'Vui lòng nâng cấp Premium để sử dụng tính năng này.');
             setTimeout(() => {
                 router.push('/premium');
             }, 1500);
@@ -138,7 +139,7 @@ export default function ProfileScreen() {
         try {
             const token = await getToken();
             if (!token) {
-                toast.error('Chưa đăng nhập!', 'Vui lòng đăng nhập lại nha.');
+                toast.error('Chưa đăng nhập', 'Vui lòng đăng nhập lại.');
                 return;
             }
 
@@ -170,7 +171,37 @@ export default function ProfileScreen() {
 
         } catch (error) {
             console.warn("Export error:", error);
-            toast.error('Xuất thất bại 😅', 'Không thể xuất file Excel lúc này. Thử lại sau nha.');
+            toast.error('Xuất thất bại', 'Không thể xuất file Excel lúc này. Vui lòng thử lại sau.');
+        }
+    };
+
+    const handleCheckForUpdate = async () => {
+        if (__DEV__) {
+            toast.info('Chế độ phát triển', 'Tính năng cập nhật OTA không hoạt động ở chế độ development.');
+            return;
+        }
+        
+        try {
+            toast.info('Đang kiểm tra...', 'Đang tìm kiếm bản cập nhật mới nhất...');
+            const update = await Updates.checkForUpdateAsync();
+            
+            if (update.isAvailable) {
+                toast.info('Đang tải...', 'Tìm thấy bản cập nhật mới. Đang tải về...');
+                await Updates.fetchUpdateAsync();
+                Alert.alert(
+                    'Đã tải xong! 🎉',
+                    'Bản cập nhật đã sẵn sàng. Bạn có muốn khởi động lại ứng dụng để áp dụng ngay không?',
+                    [
+                        { text: 'Để sau', style: 'cancel' },
+                        { text: 'Khởi động lại ngay', onPress: () => Updates.reloadAsync() }
+                    ]
+                );
+            } else {
+                toast.success('Đã cập nhật', 'Ứng dụng của bạn đang ở phiên bản mới nhất!');
+            }
+        } catch (error) {
+            console.warn("Update error:", error);
+            toast.error('Lỗi kiểm tra', 'Không thể kiểm tra cập nhật lúc này. Vui lòng thử lại sau.');
         }
     };
 
@@ -296,6 +327,13 @@ export default function ProfileScreen() {
                                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#D97706', marginLeft: 2 }}>PRO</Text>
                             </View>
                         )}
+                        <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+
+                    <TouchableOpacity style={styles.menuItem} onPress={handleCheckForUpdate} activeOpacity={0.6}>
+                        <Ionicons name="cloud-download-outline" size={20} color="#64748B" />
+                        <Text style={styles.menuItemText}>Kiểm tra bản cập nhật mới</Text>
                         <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
                     </TouchableOpacity>
                 </View>

@@ -21,11 +21,11 @@ const { width } = Dimensions.get('window');
 const PREVIEW_SIZE = width - 48;
 
 const MOODS = [
-  { emoji: '🫠', label: 'Rất tệ', value: 'very_bad' },
-  { emoji: '🤡', label: 'Tệ', value: 'bad' },
-  { emoji: '🗿', label: 'Bình thường', value: 'neutral' },
-  { emoji: '😎', label: 'Tốt', value: 'good' },
-  { emoji: '💅', label: 'Rất tốt', value: 'very_good' },
+  { emoji: '😭', label: 'Rất tệ', value: 'very_bad' },
+  { emoji: '😞', label: 'Tệ', value: 'bad' },
+  { emoji: '😐', label: 'Bình thường', value: 'neutral' },
+  { emoji: '😊', label: 'Tốt', value: 'good' },
+  { emoji: '🥰', label: 'Rất tốt', value: 'very_good' },
 ];
 
 export default function DiaryCreateScreen() {
@@ -256,14 +256,14 @@ export default function DiaryCreateScreen() {
         } else {
           toast.info(
             'Lưu nhật ký thành công! 📝',
-            'Tự động tạo giao dịch từ nhật ký bằng AI là tính năng Premium thui nha homie.'
+            'Tính năng tạo giao dịch tự động từ nhật ký bằng AI chỉ dành cho tài khoản Premium.'
           );
         }
       }
 
       await saveDiaryOnly(linkedTxId);
     } catch {
-      toast.error('Lưu thất bại!', 'Không lưu được nhật ký. Vui lòng thử lại sau nha.');
+      toast.error('Lưu thất bại', 'Không thể lưu nhật ký. Vui lòng thử lại sau.');
     } finally {
       setSaving(false);
     }

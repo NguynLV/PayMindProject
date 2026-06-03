@@ -27,7 +27,7 @@ export default function ResetPasswordScreen() {
 
     const handleVerifyOtp = async () => {
         if (otpCode.length !== 6) {
-            toast.error('Ủa thiếu số kìa!', 'Vui lòng nhập mã OTP chính xác (6 chữ số) nha.');
+            toast.error('Mã OTP không hợp lệ', 'Vui lòng nhập mã OTP gồm 6 chữ số.');
             return;
         }
         setLoading(true);
@@ -37,7 +37,7 @@ export default function ResetPasswordScreen() {
             setStep(2);
         } catch (error: any) {
             const errorMsg = error?.response?.data?.message || error.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.';
-            toast.error('Lỗi rồi bạn êi!', errorMsg);
+            toast.error('Thất bại', errorMsg);
         } finally {
             setLoading(false);
         }
@@ -45,15 +45,15 @@ export default function ResetPasswordScreen() {
 
     const handleReset = async () => {
         if (!newPassword || !confirmNewPassword) {
-            toast.error('Thiếu thông tin!', 'Vui lòng điền đầy đủ thông tin mật khẩu nha.');
+            toast.error('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin mật khẩu.');
             return;
         }
         if (newPassword !== confirmNewPassword) {
-            toast.error('Không trùng khớp!', 'Mật khẩu xác nhận chưa giống nhau nè.');
+            toast.error('Không trùng khớp', 'Mật khẩu xác nhận không trùng khớp.');
             return;
         }
         if (newPassword.length < 8) {
-            toast.error('Mật khẩu yếu quá!', 'Mật khẩu phải có ít nhất 8 ký tự nha.');
+            toast.error('Mật khẩu không hợp lệ', 'Mật khẩu phải có ít nhất 8 ký tự.');
             return;
         }
 
@@ -66,13 +66,13 @@ export default function ResetPasswordScreen() {
                 newPassword,
                 confirmNewPassword,
             });
-            toast.success('Xịn sò! 🎉', 'Mật khẩu của bạn đã được đặt lại rồi á. Đi đăng nhập ngay thôi!');
+            toast.success('Thành công', 'Mật khẩu của bạn đã được đặt lại. Vui lòng đăng nhập.');
             setTimeout(() => {
                 router.replace('/auth/login');
             }, 1500);
         } catch (error: any) {
             const errorMsg = error?.response?.data?.message || error.message || 'Có lỗi xảy ra, vui lòng thử lại.';
-            toast.error('Có gì đó sai sai!', errorMsg);
+            toast.error('Lỗi', errorMsg);
         } finally {
             setLoading(false);
         }

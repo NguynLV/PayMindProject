@@ -26,11 +26,11 @@ const CELL = Math.floor((width - 64 - 48) / COLS);
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 const MOODS = [
-  { emoji: '🫠', label: 'Rất tệ', value: 'very_bad' },
-  { emoji: '🤡', label: 'Tệ', value: 'bad' },
-  { emoji: '🗿', label: 'Bình thường', value: 'neutral' },
-  { emoji: '😎', label: 'Tốt', value: 'good' },
-  { emoji: '💅', label: 'Rất tốt', value: 'very_good' },
+  { emoji: '😭', label: 'Rất tệ', value: 'very_bad' },
+  { emoji: '😞', label: 'Tệ', value: 'bad' },
+  { emoji: '😐', label: 'Bình thường', value: 'neutral' },
+  { emoji: '😊', label: 'Tốt', value: 'good' },
+  { emoji: '🥰', label: 'Rất tốt', value: 'very_good' },
 ];
 
 function getDaysInMonth(year: number, month: number) {
@@ -49,13 +49,13 @@ function formatDisplayDate(dateStr: string) {
 function getMoodEmojiFromNote(note: string | null): string | null {
   if (!note) return null;
   const lower = note.toLowerCase();
-  if (lower.includes('hết cứu') || lower.includes('rất tệ') || lower.includes('very_bad')) return '🫠';
-  if (lower.includes('xu cà na') || lower.includes('tệ') || lower.includes('bad')) return '🤡';
-  if (lower.includes('vô tri') || lower.includes('bình thường') || lower.includes('neutral')) return '🗿';
-  if (lower.includes('ổn áp') || lower.includes('tốt') || lower.includes('good')) return '😎';
-  if (lower.includes('slay') || lower.includes('rất tốt') || lower.includes('very_good')) return '💅';
-  
-  const emojis = ['🫠', '🤡', '🗿', '😎', '💅'];
+  if (lower.includes('hết cứu') || lower.includes('rất tệ') || lower.includes('very_bad')) return '😭';
+  if (lower.includes('xu cà na') || lower.includes('tệ') || lower.includes('bad')) return '😞';
+  if (lower.includes('vô tri') || lower.includes('bình thường') || lower.includes('neutral')) return '😐';
+  if (lower.includes('ổn áp') || lower.includes('tốt') || lower.includes('good')) return '😊';
+  if (lower.includes('slay') || lower.includes('rất tốt') || lower.includes('very_good')) return '🥰';
+
+  const emojis = ['😭', '😞', '😐', '😊', '🥰'];
   for (const e of emojis) {
     if (note.includes(e)) return e;
   }
@@ -395,7 +395,7 @@ function CaptureTab({
         } else {
           toast.info(
             'Lưu nhật ký thành công! 📝',
-            'Tự động tạo giao dịch từ nhật ký bằng AI là tính năng Premium thui nha homie.'
+            'Tính năng tạo giao dịch tự động từ nhật ký bằng AI chỉ dành cho tài khoản Premium.'
           );
         }
       }
@@ -405,7 +405,7 @@ function CaptureTab({
       toast.success('Đã lưu! 💫', 'Kỷ niệm hôm nay đã được ghi lại.');
       setCapturedUri(null); setNote('');
     } catch {
-      toast.error('Lưu thất bại!', 'Không lưu được. Thử lại sau nha.');
+      toast.error('Lưu thất bại', 'Không thể lưu. Vui lòng thử lại sau.');
     } finally {
       setSaving(false);
     }

@@ -109,13 +109,13 @@ export default function BudgetFormScreen() {
 
     const handleSave = async () => {
         if (!name.trim()) {
-            toast.error('Thiếu thông tin kìa! 😅', 'Vui lòng nhập tên ngân sách nha');
+            toast.error('Thiếu thông tin', 'Vui lòng nhập tên ngân sách.');
             return;
         }
 
         const numericAmount = Number(amount.replace(/[^0-9]/g, ''));
         if (isNaN(numericAmount) || numericAmount <= 0) {
-            toast.error('Ủa sai rồi! 🥲', 'Số tiền không hợp lệ, thử lại nha');
+            toast.error('Số tiền không hợp lệ', 'Số tiền không hợp lệ, vui lòng thử lại.');
             return;
         }
 
@@ -126,7 +126,7 @@ export default function BudgetFormScreen() {
             selectedDate.setHours(0, 0, 0, 0);
 
             if (selectedDate < today) {
-                toast.error('Ủa sai rồi! 📅', 'Không được chọn ngày trong quá khứ nha');
+                toast.error('Ngày không hợp lệ', 'Không thể chọn ngày trong quá khứ.');
                 return;
             }
         }

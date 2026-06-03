@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.levinhnguyen.quanlichitieu",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSpeechRecognitionUsageDescription": "Cho phép $(PRODUCT_NAME) sử dụng nhận diện giọng nói.",
+        "NSMicrophoneUsageDescription": "Cho phép $(PRODUCT_NAME) truy cập micro để nhập giọng nói."
       }
     },
     "android": {
@@ -24,7 +26,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.levinhnguyen.quanlichitieu"
+      "package": "com.levinhnguyen.quanlichitieu",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -38,9 +44,9 @@
           "image": "./src/assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#111827",
           "dark": {
-            "backgroundColor": "#FFFFFF"
+            "backgroundColor": "#111827"
           }
         }
       ],
@@ -48,13 +54,15 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
-      ]
-,
+      ],
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
+      "./withSplitApk.js",
       [
         "expo-speech-recognition",
         {
@@ -73,6 +81,12 @@
       "eas": {
         "projectId": "efbfb8c6-fb5a-4cc8-a5b2-9bdcacf7f95a"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/efbfb8c6-fb5a-4cc8-a5b2-9bdcacf7f95a"
     }
   }
 }

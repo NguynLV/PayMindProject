@@ -16,20 +16,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AuthService from '@/services/auth.service';
-import { GoogleSignin, statusCodes, isErrorWithCode } from '@/utils/google-auth';
+
 import { saveToken } from '@/services/api';
 import { useToast } from '@/components/common/Toast';
 
-const GOOGLE_WEB_CLIENT_ID = '473436450565-hih6p9ftkiudpi2tplnml8p3pevg2h7q.apps.googleusercontent.com';
-const GOOGLE_IOS_CLIENT_ID = '473436450565-lbmqavb9i5ogs02gfie2970io80eatks.apps.googleusercontent.com';
 
-if (GoogleSignin) {
-    GoogleSignin.configure({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        iosClientId: GOOGLE_IOS_CLIENT_ID,
-        offlineAccess: true,
-    });
-}
 
 export default function RegisterScreen() {
     const router = useRouter();
@@ -65,12 +56,12 @@ export default function RegisterScreen() {
 
     const handleRegister = async () => {
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
-            toast.error('Ủa thiếu info kìa!', 'Điền đầy đủ các ô bắt buộc nha.');
+            toast.error('Thiếu thông tin', 'Vui lòng điền đầy đủ các thông tin bắt buộc.');
             return;
         }
 
         if (password !== confirmPassword) {
-            toast.error('Mật khẩu chưa khớp nha!', 'Mật khẩu xác nhận không trùng khớp. Check lại xíu nha!');
+            toast.error('Mật khẩu không khớp', 'Mật khẩu xác nhận không trùng khớp. Vui lòng kiểm tra lại.');
             return;
         }
 
@@ -85,62 +76,16 @@ export default function RegisterScreen() {
             });
 
             setLoading(false);
-            toast.success('Đăng ký xong rồi! 🎉', 'Vui lòng xác thực email của bạn để tiếp tục.');
+            toast.success('Đăng ký thành công', 'Vui lòng xác thực email của bạn để tiếp tục.');
             setTimeout(() => router.push({ pathname: '/auth/verify-otp', params: { email } }), 1500);
         } catch (error: any) {
             setLoading(false);
             const errorMsg = error?.response?.data?.message || error.message || 'Đã có lỗi xảy ra';
-            toast.error('Đăng ký thất bại 😭', errorMsg);
+            toast.error('Đăng ký thất bại', errorMsg);
         }
     };
 
-    const handleGoogleLogin = async () => {
-        if (!GoogleSignin) {
-            toast.info('Chưa hỗ trợ nha!', 'Tính năng đăng ký bằng Google chưa có trên Expo Go. Dùng bản build chính thức nha bạn ơi!');
-            return;
-        }
-        setGoogleLoading(true);
-        try {
-            await GoogleSignin.hasPlayServices();
-            try { await GoogleSignin.signOut(); } catch (e) {}
-            const userInfo = await GoogleSignin.signIn();
-            const idToken = userInfo.data?.idToken;
 
-            if (idToken) {
-                const res = await AuthService.loginWithGoogle(idToken);
-                if (res.authenticated) {
-                    await saveToken(res.token);
-                    if (res.isNewUser) {
-                        router.replace('/auth/onboarding');
-                    } else {
-                        router.replace('/(tabs)');
-                    }
-                } else {
-                    toast.error('Ối dồi ôi! 😬', 'Không thể xác thực tài khoản Google với máy chủ. Thử lại nhé!');
-                }
-            } else {
-                toast.error('Lỗi Google rồi! 😓', 'Không lấy được thông tin từ Google. Thử lại xíu nha!');
-            }
-        } catch (error: any) {
-            if (isErrorWithCode(error)) {
-                switch (error.code) {
-                    case statusCodes.SIGN_IN_CANCELLED:
-                        break;
-                    case statusCodes.IN_PROGRESS:
-                        break;
-                    case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-                        toast.error('Play Services lỗi! 😵', 'Google Play Services không khả dụng trên thiết bị này.');
-                        break;
-                    default:
-                        toast.error('Google Sign-In thất bại 😭', error.message || 'Đã có lỗi xảy ra. Thử lại nha!');
-                }
-            } else {
-                toast.error('Đăng ký thất bại 😭', error.message || 'Đã có lỗi xảy ra. Thử lại nha!');
-            }
-        } finally {
-            setGoogleLoading(false);
-        }
-    };
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -313,21 +258,21 @@ export default function RegisterScreen() {
                                     if (currentStep < 2) {
                                         if (currentStep === 1) {
                                             if (!email || !password || !confirmPassword) {
-                                                toast.error('Ủa thiếu info kìa!', 'Điền đầy đủ email và mật khẩu nha bạn ơi!');
+                                                toast.error('Thiếu thông tin', 'Vui lòng điền đầy đủ email và mật khẩu.');
                                                 return;
                                             }
                                             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                                             if (!emailRegex.test(email.trim())) {
                                                 setEmailError('Email không đúng định dạng');
-                                                toast.error('Email sai định dạng rồi! 📧', 'Email nhập vào chưa đúng định dạng. Kiểm tra lại nha!');
+                                                toast.error('Email không hợp lệ', 'Email nhập vào chưa đúng định dạng. Vui lòng kiểm tra lại.');
                                                 return;
                                             }
                                             if (password.length < 6) {
-                                                toast.error('Mật khẩu quá ngắn! 🔑', 'Mật khẩu phải có ít nhất 6 ký tự nha!');
+                                                toast.error('Mật khẩu không hợp lệ', 'Mật khẩu phải có ít nhất 6 ký tự.');
                                                 return;
                                             }
                                             if (password !== confirmPassword) {
-                                                toast.error('Mật khẩu chưa khớp nha!', 'Hai mật khẩu không giống nhau. Check lại đi!');
+                                                toast.error('Mật khẩu không khớp', 'Mật khẩu xác nhận không trùng khớp. Vui lòng kiểm tra lại.');
                                                 return;
                                             }
                                             setLoading(true);
@@ -335,7 +280,7 @@ export default function RegisterScreen() {
                                                 const exists = await AuthService.checkEmail(email.trim());
                                                 if (exists) {
                                                     setLoading(false);
-                                                    toast.error('Email đã có chủ rồi! 📭', 'Email này đã được đăng ký rồi. Dùng email khác hoặc đăng nhập nha!');
+                                                    toast.error('Email đã tồn tại', 'Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập.');
                                                     return;
                                                 }
                                             } catch (error) {
@@ -346,7 +291,7 @@ export default function RegisterScreen() {
                                         }
                                     } else {
                                         if (!firstName.trim() || !lastName.trim()) {
-                                            toast.error('Ủa thiếu tên kìa!', 'Điền đầy đủ họ và tên nha bạn ơi!');
+                                            toast.error('Thiếu thông tin', 'Vui lòng điền đầy đủ họ và tên.');
                                             return;
                                         }
                                         handleRegister();
@@ -365,31 +310,6 @@ export default function RegisterScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Divider */}
-                        <View style={styles.dividerRow}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>HOẶC TIẾP TỤC VỚI</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
-
-                        {/* Social Google */}
-                        <TouchableOpacity
-                            style={[styles.googleBtn, googleLoading && styles.googleBtnDisabled]}
-                            activeOpacity={0.85}
-                            onPress={handleGoogleLogin}
-                            disabled={googleLoading}
-                        >
-                            {googleLoading ? (
-                                <ActivityIndicator size={20} color="#6366F1" />
-                            ) : (
-                                <Image
-                                    source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
-                                    style={styles.googleLogoImg}
-                                    resizeMode="contain"
-                                />
-                            )}
-                            <Text style={styles.googleBtnText}>Đăng ký bằng Google</Text>
-                        </TouchableOpacity>
 
                         {/* Login Navigation Link */}
                         {currentStep === 1 && (

@@ -41,7 +41,7 @@ export default function EditProfileScreen() {
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            toast.warning('Cần quyền truy cập', 'Cho phép truy cập thư viện ảnh để đổi avatar nha homie!');
+            toast.warning('Cần quyền truy cập', 'Vui lòng cho phép truy cập thư viện ảnh để đổi ảnh đại diện.');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -57,7 +57,7 @@ export default function EditProfileScreen() {
 
     const handleSave = async () => {
         if (!firstName.trim() || !lastName.trim()) {
-            toast.error('Ủa thiếu thông tin!', 'Họ và tên không được để trống nha homie.');
+            toast.error('Thiếu thông tin', 'Họ và tên không được để trống.');
             return;
         }
         setLoading(true);

@@ -108,13 +108,13 @@ export default function DebtScreen() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'UNPAID':
-                return { text: 'Chưa thanh toán 🚨', color: '#EF4444', bg: '#FEF2F2' };
+                return { text: 'Chưa thanh toán', color: '#EF4444', bg: '#FEF2F2' };
             case 'PAID':
-                return { text: 'Đã thanh toán 🥳', color: '#10B981', bg: '#F0FDF4' };
+                return { text: 'Đã thanh toán', color: '#10B981', bg: '#F0FDF4' };
             case 'DEFAULTED':
-                return { text: 'Khó thu hồi ⏳', color: '#6B7280', bg: '#F3F4F6' };
+                return { text: 'Khó thu hồi', color: '#6B7280', bg: '#F3F4F6' };
             default:
-                return { text: 'Chưa rõ 🤔', color: '#F59E0B', bg: '#FFFBEB' };
+                return { text: 'Chưa rõ', color: '#F59E0B', bg: '#FFFBEB' };
         }
     };
 
@@ -136,7 +136,7 @@ export default function DebtScreen() {
     const copyToClipboard = async (text: string) => {
         await Clipboard.setStringAsync(text);
         setShowReminderModal(false);
-        toast.success('Đã sao chép! 📋', 'Đã sao chép tin nhắn nhắc nợ thành công.');
+        toast.success('Đã sao chép!', 'Đã sao chép tin nhắn nhắc nợ thành công.');
     };
 
     const renderDebtCard = ({ item }: { item: DebtResponse }) => {
@@ -179,7 +179,7 @@ export default function DebtScreen() {
                                 onPress={() => handleUpdateStatus(item.id, 'PAID')}
                             >
                                 <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
-                                <Text style={styles.successActionText}>Đã nhận</Text>
+                                <Text style={styles.successActionText}>{item.type === 'BORROWED' ? 'Đã trả' : 'Đã nhận'}</Text>
                             </TouchableOpacity>
 
                             {item.type === 'LENT' && (
@@ -200,7 +200,7 @@ export default function DebtScreen() {
                                 onPress={() => handleUpdateStatus(item.id, 'DEFAULTED')}
                             >
                                 <Ionicons name="time-outline" size={16} color="#6B7280" />
-                                <Text style={styles.defaultedActionText}>Khó thu hồi ⏳</Text>
+                                <Text style={styles.defaultedActionText}>Khó thu hồi</Text>
                             </TouchableOpacity>
                         </>
                     )}
@@ -211,7 +211,7 @@ export default function DebtScreen() {
                             onPress={() => handleUpdateStatus(item.id, 'UNPAID')}
                         >
                             <Ionicons name="refresh-outline" size={16} color="#3B82F6" />
-                            <Text style={styles.undoActionText}>Đặt lại chưa trả</Text>
+                            <Text style={styles.undoActionText}>{item.type === 'BORROWED' ? 'Đánh dấu chưa trả' : 'Đánh dấu chưa nhận'}</Text>
                         </TouchableOpacity>
                     )}
 
@@ -245,7 +245,7 @@ export default function DebtScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                 </TouchableOpacity>
-                <Text style={styles.title}>Quản lý Sổ Nợ 💸</Text>
+                <Text style={styles.title}>Quản lý Sổ Nợ</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -253,27 +253,27 @@ export default function DebtScreen() {
             <View style={styles.summaryContainer}>
                 <View style={styles.summaryCard}>
                     <View style={styles.summaryItem}>
-                        <Text style={styles.summaryLabel}>{activeTab === 'LENT' ? 'Khoản cho vay (Đang chờ) 📈' : 'Khoản đi vay (Đang nợ) 💸'}</Text>
+                        <Text style={styles.summaryLabel}>{activeTab === 'LENT' ? 'Tổng cho vay' : 'Tổng đi vay'}</Text>
                         <Text style={[styles.summaryValue, activeTab === 'LENT' ? styles.summaryLent : styles.summaryBorrowed]}>
                             {formatVND(totalUnpaid)}
                         </Text>
                     </View>
                     <View style={styles.summaryDivider} />
                     <View style={styles.summaryItem}>
-                        <Text style={styles.summaryLabel}>Đã giải quyết ổn thỏa</Text>
+                        <Text style={styles.summaryLabel}>Đã thanh toán</Text>
                         <Text style={styles.summaryValueSub}>{formatVND(totalPaid)}</Text>
                     </View>
                 </View>
             </View>
 
-            {/* Gen Z Custom Tabs */}
+            {/* Tabs */}
             <View style={styles.tabContainer}>
                 <TouchableOpacity 
                     style={[styles.tabButton, activeTab === 'LENT' && styles.activeLentTab]}
                     onPress={() => setActiveTab('LENT')}
                 >
                     <Text style={[styles.tabText, activeTab === 'LENT' && styles.activeLentTabText]}>
-                        Cho vay 📈
+                        Cho vay
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -281,7 +281,7 @@ export default function DebtScreen() {
                     onPress={() => setActiveTab('BORROWED')}
                 >
                     <Text style={[styles.tabText, activeTab === 'BORROWED' && styles.activeBorrowedTabText]}>
-                        Đi vay 💸
+                        Đi vay
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -332,7 +332,7 @@ export default function DebtScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Mẫu tin nhắn nhắc nợ lịch sự 🗣️</Text>
+                            <Text style={styles.modalTitle}>Mẫu tin nhắn nhắc nợ</Text>
                             <TouchableOpacity onPress={() => setShowReminderModal(false)}>
                                 <Ionicons name="close" size={24} color="#4B5563" />
                             </TouchableOpacity>

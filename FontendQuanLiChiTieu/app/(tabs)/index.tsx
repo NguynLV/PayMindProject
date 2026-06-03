@@ -18,6 +18,7 @@ import { WalletService, WalletResponse } from '@/services/wallet.service';
 import { NotificationService } from '@/services/notification.service';
 import { BudgetService, BudgetResponse } from '@/services/budget.service';
 import { getRelativeDate, formatTime } from '@/utils/date';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 const BENTO_WIDTH = (width - 48) / 2; // Split side by side with gap 16
@@ -324,6 +325,22 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isFirstLoad.current && !isRefresh) {
+      // Load cache immediately
+      try {
+        const cached = await AsyncStorage.getItem('@home_data_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.user) setUser(parsed.user);
+          if (parsed.transactions) setTransactions(parsed.transactions);
+          if (parsed.wallets) setWallets(parsed.wallets);
+          if (parsed.unreadCount !== undefined) setUnreadCount(parsed.unreadCount);
+          if (parsed.budgets) setBudgets(parsed.budgets);
+          setLoading(false); // Stop loading immediately if cache exists
+        }
+      } catch (e) {
+        console.warn('Cache read error', e);
+      }
+
       await new Promise(resolve => setTimeout(resolve, 100));
       isFirstLoad.current = false;
     }
@@ -349,6 +366,15 @@ export default function HomeScreen() {
       setWallets(wRes);
       setUnreadCount(unread);
       setBudgets(budgetsRes);
+
+      // Save cache silently
+      try {
+        await AsyncStorage.setItem('@home_data_cache', JSON.stringify({
+          user: u, transactions: txRes, wallets: wRes, unreadCount: unread, budgets: budgetsRes
+        }));
+      } catch (e) {
+        console.warn('Cache write error', e);
+      }
 
       if (activeBudgetIdx >= budgetsRes.length && budgetsRes.length > 0) {
         setActiveBudgetIdx(0);

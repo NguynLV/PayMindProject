@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Platform, useWindowDimensions, Image, StatusBar, KeyboardAvoidingView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Platform, useWindowDimensions, Image, StatusBar, KeyboardAvoidingView, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -11,6 +11,7 @@ import { TransactionService, TransactionRequest } from '../../src/services/trans
 import { BudgetService, BudgetResponse } from '../../src/services/budget.service';
 import { formatDate } from '../../src/utils/date';
 import { CustomDatePicker } from '../../src/components/common/CustomDatePicker';
+import CustomNumpad from '../../src/components/common/CustomNumpad';
 import { useToast } from '../../src/components/common/Toast';
 import * as ImagePicker from 'expo-image-picker';
 import UserService, { UserProfile } from '../../src/services/user.service';
@@ -22,11 +23,11 @@ const { width, height } = Dimensions.get('window');
 type TransactionType = 'EXPENSE' | 'INCOME';
 
 const MOODS = [
-  { emoji: '🫠', label: 'Rất tệ', value: 'very_bad' },
-  { emoji: '🤡', label: 'Tệ', value: 'bad' },
-  { emoji: '🗿', label: 'Bình thường', value: 'neutral' },
-  { emoji: '😎', label: 'Tốt', value: 'good' },
-  { emoji: '💅', label: 'Rất tốt', value: 'very_good' },
+  { emoji: '😭', label: 'Rất tệ', value: 'very_bad' },
+  { emoji: '😞', label: 'Tệ', value: 'bad' },
+  { emoji: '😐', label: 'Bình thường', value: 'neutral' },
+  { emoji: '😊', label: 'Tốt', value: 'good' },
+  { emoji: '🥰', label: 'Rất tốt', value: 'very_good' },
 ];
 
 const getMoodTheme = (moodValue: string | null) => {
@@ -36,35 +37,35 @@ const getMoodTheme = (moodValue: string | null) => {
                 bg: 'rgba(236, 72, 153, 0.08)',
                 border: 'rgba(236, 72, 153, 0.2)',
                 textColor: '#EC4899',
-                emoji: '💅'
+                emoji: '🥰'
             };
         case 'good':
             return {
                 bg: 'rgba(16, 185, 129, 0.08)',
                 border: 'rgba(16, 185, 129, 0.2)',
                 textColor: '#10B981',
-                emoji: '😎'
+                emoji: '😊'
             };
         case 'neutral':
             return {
                 bg: 'rgba(156, 163, 175, 0.08)',
                 border: 'rgba(156, 163, 175, 0.2)',
                 textColor: '#6B7280',
-                emoji: '🗿'
+                emoji: '😐'
             };
         case 'bad':
             return {
                 bg: 'rgba(245, 158, 11, 0.08)',
                 border: 'rgba(245, 158, 11, 0.2)',
                 textColor: '#D97706',
-                emoji: '🤡'
+                emoji: '😞'
             };
         case 'very_bad':
             return {
                 bg: 'rgba(239, 68, 68, 0.08)',
                 border: 'rgba(239, 68, 68, 0.2)',
                 textColor: '#EF4444',
-                emoji: '🫠'
+                emoji: '😭'
             };
         default:
             return {
@@ -104,7 +105,6 @@ export default function AddTransactionScreen() {
     const [isSaving, setIsSaving] = useState(false);
     const [user, setUser] = useState<UserProfile | null>(null);
     const [imageUri, setImageUri] = useState<string | null>(null);
-    const [isScanning, setIsScanning] = useState(false);
 
     const [budgets, setBudgets] = useState<BudgetResponse[]>([]);
     const { height: windowHeight, width: windowWidth } = useWindowDimensions();
@@ -184,7 +184,7 @@ export default function AddTransactionScreen() {
             } else {
                 fetchInitialData(type);
             }
-        }, [params.initialType, params.date, type, router])
+        }, [params.initialType, params.date]) // Removed type and router from dependencies to avoid triggering on state changes
     );
 
     useEffect(() => {
@@ -213,7 +213,6 @@ export default function AddTransactionScreen() {
             setBudgets(bRes);
             if (uProfile) {
                 setUser(uProfile);
-                setInputMode('camera_capture');
             }
 
             await fetchCategories(currentType);
@@ -239,7 +238,8 @@ export default function AddTransactionScreen() {
     };
 
     const getBudgetInfo = () => {
-        if (type !== 'EXPENSE' || !categoryId || !amount) return null;
+        const finalAmount = evaluateExpression(expression);
+        if (type !== 'EXPENSE' || !categoryId || finalAmount <= 0) return null;
 
         const selectedMonth = date.getMonth() + 1;
         const selectedYear = date.getFullYear();
@@ -254,7 +254,7 @@ export default function AddTransactionScreen() {
         const activeBudget = catBudget || totalBudget;
         if (!activeBudget) return null;
 
-        const numericAmount = Number(amount);
+        const numericAmount = finalAmount;
         const remaining = activeBudget.amount - activeBudget.spentAmount;
         const isExceeded = numericAmount > remaining;
         const isNearLimit = !isExceeded && (remaining - numericAmount) / activeBudget.amount < 0.15;
@@ -271,16 +271,17 @@ export default function AddTransactionScreen() {
     const budgetInfo = getBudgetInfo();
 
     const handleSave = async () => {
-        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-            toast.error('Ủa sai rồi!', 'Nhập số tiền hợp lệ nha bạn ơi.');
+        const finalAmount = evaluateExpression(expression);
+        if (isNaN(finalAmount) || finalAmount <= 0) {
+            toast.error('Số tiền không hợp lệ', 'Vui lòng nhập số tiền hợp lệ.');
             return;
         }
         if (!categoryId) {
-            toast.error('Chưa chọn danh mục!', 'Chọn danh mục cho giao dịch nha.');
+            toast.error('Chưa chọn danh mục', 'Vui lòng chọn danh mục cho giao dịch.');
             return;
         }
         if (!walletId) {
-            toast.error('Chưa chọn ví!', 'Chọn ví để lưu giao dịch nha.');
+            toast.error('Chưa chọn ví', 'Vui lòng chọn ví để lưu giao dịch.');
             return;
         }
 
@@ -290,7 +291,7 @@ export default function AddTransactionScreen() {
                 const txs = await TransactionService.getMyTransactions();
                 const imageCount = txs.filter(t => !!t.imageUrl).length;
                 if (imageCount >= 9) {
-                    toast.info('Giới hạn hình ảnh! 👑', 'Tài khoản miễn phí chỉ được tải lên tối đa 9 ảnh hóa đơn. Hãy nâng cấp Premium để không giới hạn.');
+                    toast.info('Giới hạn hình ảnh', 'Tài khoản miễn phí chỉ được tải lên tối đa 9 ảnh. Vui lòng nâng cấp Premium để không giới hạn.');
                     router.push('/premium');
                     return;
                 }
@@ -328,8 +329,9 @@ export default function AddTransactionScreen() {
                     console.log("Failed to upload transaction image", uploadErr);
                 }
             }
+            const finalAmount = evaluateExpression(expression);
             const req: TransactionRequest = {
-                amount: Number(amount),
+                amount: finalAmount,
                 type,
                 categoryId: categoryId!,
                 walletId: walletId!,
@@ -339,18 +341,19 @@ export default function AddTransactionScreen() {
                 mood: mood || undefined
             };
             await TransactionService.createTransaction(req);
-            toast.success('Đã lưu giao dịch! 🎉', 'Giao dịch của bạn đã được ghi lại thành công.');
+            toast.success('Lưu thành công', 'Giao dịch của bạn đã được ghi lại thành công.');
             setTimeout(() => {
+                setExpression('0');
                 setAmount('');
                 setDescription('');
                 setImageUri(null);
                 setMood(null);
                 setInputMode('camera_capture');
-                router.push('/');
+                router.replace('/');
             }, 1200);
         } catch (err: any) {
             console.log(err);
-            toast.error('Lưu thất bại 😅', err.response?.data?.message || err.message || 'Không thể thêm giao dịch lúc này.');
+            toast.error('Lưu thất bại', err.response?.data?.message || err.message || 'Không thể thêm giao dịch lúc này.');
         } finally {
             setIsSaving(false);
         }
@@ -401,7 +404,7 @@ export default function AddTransactionScreen() {
             if (useCamera) {
                 const { status } = await ImagePicker.requestCameraPermissionsAsync();
                 if (status !== 'granted') {
-                    toast.error('Quyền truy cập!', 'Vui lòng cho phép truy cập camera.');
+                    toast.error('Cần quyền truy cập', 'Vui lòng cho phép truy cập camera.');
                     return;
                 }
                 result = await ImagePicker.launchCameraAsync({
@@ -412,7 +415,7 @@ export default function AddTransactionScreen() {
             } else {
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (status !== 'granted') {
-                    toast.error('Quyền truy cập!', 'Vui lòng cho phép truy cập thư viện.');
+                    toast.error('Cần quyền truy cập', 'Vui lòng cho phép truy cập thư viện.');
                     return;
                 }
                 result = await ImagePicker.launchImageLibraryAsync({
@@ -426,12 +429,7 @@ export default function AddTransactionScreen() {
                 const asset = result.assets[0];
                 setImageUri(asset.uri);
                 setInputMode('calculator');
-
-                if (user?.isPremium) {
-                    await runAiScan(asset.base64 || '', asset.mimeType || 'image/jpeg');
-                } else {
-                    toast.info('Đã đính kèm ảnh! 📸', 'Hãy nhập tay số tiền và chọn chi tiết giao dịch nhé.');
-                }
+                toast.success('Đã đính kèm ảnh', 'Vui lòng nhập số tiền và chọn chi tiết giao dịch.');
             }
         } catch (err: any) {
             console.log("Error selecting image", err);
@@ -443,7 +441,7 @@ export default function AddTransactionScreen() {
         if (!permission?.granted) {
             const status = await requestPermission();
             if (!status.granted) {
-                toast.error('Quyền truy cập!', 'Vui lòng cho phép truy cập camera.');
+                toast.error('Cần quyền truy cập', 'Vui lòng cho phép truy cập camera.');
                 return;
             }
         }
@@ -455,12 +453,7 @@ export default function AddTransactionScreen() {
             if (photo && photo.uri) {
                 setImageUri(photo.uri);
                 setInputMode('calculator');
-                
-                if (user?.isPremium) {
-                    await runAiScan(photo.base64 || '', 'image/jpeg');
-                } else {
-                    toast.info('Đã đính kèm ảnh! 📸', 'Hãy nhập tay số tiền và chọn chi tiết giao dịch nhé.');
-                }
+                toast.success('Đã đính kèm ảnh', 'Vui lòng nhập số tiền và chọn chi tiết giao dịch.');
             }
         } catch (err) {
             console.log("Error capturing photo", err);
@@ -468,70 +461,7 @@ export default function AddTransactionScreen() {
         }
     };
 
-    const runAiScan = async (base64: string, mime: string) => {
-        const isPremiumUser = !!user?.isPremium;
-        const stats = await AiLimitService.getUsageStats(isPremiumUser);
-        if (!stats.allowed) {
-            toast.info('Đạt giới hạn AI hôm nay! 👑', 'Vui lòng nâng cấp lên Premium để tiếp tục sử dụng tính năng quét hóa đơn AI.');
-            router.push('/premium');
-            return;
-        }
 
-        try {
-            setIsScanning(true);
-            const categoryNames = categories.map(c => c.name);
-            const parsed = await AiService.scanReceipt(base64, mime, categoryNames);
-
-            // Increment daily AI usage
-            await AiLimitService.incrementUsage(isPremiumUser);
-
-            if (parsed) {
-                if (parsed.amount && parsed.amount > 0) {
-                    setExpression(String(parsed.amount));
-                }
-                if (parsed.type) {
-                    setType(parsed.type);
-                }
-                if (parsed.description) {
-                    setDescription(parsed.description);
-                }
-                
-                if (parsed.category) {
-                    const matched = categories.find(
-                        c => c.name.toLowerCase() === parsed.category!.toLowerCase() &&
-                        c.type === (parsed.type || type)
-                    );
-                    if (matched) {
-                        setCategoryId(matched.id);
-                    }
-                }
-
-                if (parsed.walletIntent && wallets.length > 0) {
-                    if (parsed.walletIntent === 'BANK') {
-                        const bw = wallets.find(w =>
-                            w.name.toLowerCase().includes('ngân hàng') ||
-                            w.name.toLowerCase().includes('bank') ||
-                            w.name.toLowerCase().includes('thẻ')
-                        );
-                        if (bw) setWalletId(bw.id);
-                    } else if (parsed.walletIntent === 'CASH') {
-                        const cw = wallets.find(w =>
-                            w.name.toLowerCase().includes('tiền mặt') ||
-                            w.name.toLowerCase().includes('ví')
-                        );
-                        if (cw) setWalletId(cw.id);
-                    }
-                }
-
-                toast.success('Quét hóa đơn xong! 🤖✨', 'AI đã tự động điền các thông tin tìm được.');
-            }
-        } catch (err: any) {
-            console.log("Error during AI scan receipt", err);
-            toast.error('Lỗi quét hóa đơn 😅', 'Không thể tự động phân tích hóa đơn lúc này.');
-        } finally {
-            setIsScanning(false);
-        }
-    };
 
     const selectedWallet = wallets.find(w => w.id === walletId);
 
@@ -542,7 +472,7 @@ export default function AddTransactionScreen() {
                 
                 <View style={[styles.captureHeader, { paddingTop: insets.top, height: 56 + insets.top }]}>
                     <TouchableOpacity style={styles.captureCancelBtn} onPress={() => router.back()} activeOpacity={0.7}>
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                        <Text style={styles.captureCancelText}>Hủy</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -578,278 +508,262 @@ export default function AddTransactionScreen() {
                 </View>
 
                 <View style={styles.captureBottomControls}>
-                    <TouchableOpacity style={styles.captureOuterCircle} onPress={handleCapture} activeOpacity={0.85}>
-                        <View style={styles.captureInnerCircle} />
-                    </TouchableOpacity>
+                    <View style={styles.captureButtonContainer}>
+                        <LinearGradient
+                            colors={['#3B82F6', '#8B5CF6', '#D946EF', '#F43F5E']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.captureGradientRing}
+                        >
+                            <TouchableOpacity style={styles.captureOuterCircle} onPress={handleCapture} activeOpacity={0.85}>
+                                <View style={styles.captureInnerCircle} />
+                            </TouchableOpacity>
+                        </LinearGradient>
+                    </View>
 
                     <TouchableOpacity style={styles.libraryCapsule} onPress={() => handlePickImage(false)}>
-                        <Ionicons name="images-outline" size={15} color="#FFF" style={{ marginRight: 6 }} />
-                        <Text style={styles.libraryCapsuleText}>Chọn từ ảnh</Text>
+                        <Ionicons name="images-outline" size={18} color="#D946EF" style={{ marginRight: 8 }} />
+                        <Text style={styles.libraryCapsuleText}>Chọn từ thư viện</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.skipBtn} onPress={() => setInputMode('manual')}>
-                        <Text style={styles.skipBtnText}>Nhập tay</Text>
+                        <Text style={styles.skipBtnText}>Bỏ qua ảnh</Text>
                     </TouchableOpacity>
                 </View>
             </View>
         );
     }
 
-    if (inputMode === 'manual') {
+    // Render Manual & Calculator Modes
+
+        const catName = categories.find(c => c.id === categoryId)?.name || 'Danh mục';
+        const isExpense = type === 'EXPENSE';
+        const catIcon = categories.find(c => c.id === categoryId)?.icon || 'apps-outline';
+        
+        // Determine the gradient colors based on Expense/Income
+        const gradientColors = isExpense 
+            ? ['#EF4444', '#B91C1C', '#7F1D1D'] 
+            : ['#10B981', '#047857', '#064E3B'];
+
+        const displayDate = date.toDateString() === new Date().toDateString() ? 'Hôm nay' : formatDate(date);
+
         return (
-            <View style={styles.manualContainer}>
-                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-                <View style={[styles.manualHeader, { paddingTop: insets.top, height: 56 + insets.top }]}>
-                    <TouchableOpacity style={styles.manualHeaderIconBtn} onPress={() => setInputMode('camera_capture')}>
-                        <Ionicons name="arrow-back" size={24} color="#111827" />
-                    </TouchableOpacity>
-                    <Text style={styles.manualHeaderTitle}>Ghi chép giao dịch</Text>
-                    <View style={{ width: 40 }} />
-                </View>
-
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={{ flex: 1 }}
-                >
-                    <ScrollView
-                        style={styles.manualScrollContent}
-                        contentContainerStyle={styles.manualScrollContentContainer}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                    >
-                    <View style={styles.manualSegmentedControl}>
-                        <TouchableOpacity
-                            style={[styles.manualSegmentBtn, type === 'EXPENSE' && styles.manualSegmentBtnActiveExpense]}
-                            onPress={() => setType('EXPENSE')}
-                        >
-                            <Text style={[styles.manualSegmentText, type === 'EXPENSE' && styles.manualSegmentTextActive]}>Khoản chi</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.manualSegmentBtn, type === 'INCOME' && styles.manualSegmentBtnActiveIncome]}
-                            onPress={() => setType('INCOME')}
-                        >
-                            <Text style={[styles.manualSegmentText, type === 'INCOME' && styles.manualSegmentTextActive]}>Khoản thu</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.manualAmountSection}>
-                        <Text style={styles.manualAmountLabel}>Nhập số tiền</Text>
-                        <View style={styles.manualAmountRow}>
-                            <View style={styles.manualAmountInputWrapper}>
-                                <TextInput
-                                    style={[
-                                        styles.manualAmountInput,
-                                        { color: '#111827' }
-                                    ]}
-                                    placeholder="0"
-                                    placeholderTextColor="#D1D5DB"
-                                    keyboardType="numeric"
-                                    value={amount ? new Intl.NumberFormat('en-US').format(Number(amount)) : ''}
-                                    onFocus={() => setIsAmountFocused(true)}
-                                    onBlur={() => setIsAmountFocused(false)}
-                                    onChangeText={(text) => {
-                                        const numeric = text.replace(/[^0-9]/g, '');
-                                        setAmount(numeric);
-                                    }}
-                                />
-                                <Text style={styles.manualCurrencySymbol}>đ</Text>
-                            </View>
-                        </View>
-                        {budgetInfo && (
-                            <View style={[
-                                styles.manualBudgetWarning,
-                                budgetInfo.isExceeded ? styles.manualBudgetExceeded : styles.manualBudgetNearLimit
-                            ]}>
-                                <Ionicons
-                                    name={budgetInfo.isExceeded ? "alert-circle" : "warning"}
-                                    size={14}
-                                    color={budgetInfo.isExceeded ? "#EF4444" : "#F59E0B"}
-                                />
-                                <Text style={[
-                                    styles.manualBudgetWarningText,
-                                    { color: budgetInfo.isExceeded ? "#EF4444" : "#F59E0B" }
-                                ]}>
-                                    {budgetInfo.isExceeded
-                                        ? `Đã vượt ngân sách! Còn lại: ${new Intl.NumberFormat('vi-VN').format(budgetInfo.remaining)} đ`
-                                        : `Sắp vượt hạn mức (${new Intl.NumberFormat('vi-VN').format(budgetInfo.remaining)} đ còn lại)`}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-
-                    <Text style={styles.manualSectionTitle}>Danh mục giao dịch</Text>
-                    {loading ? (
-                        <ActivityIndicator size="small" color="#6366F1" style={{ marginVertical: 20 }} />
-                    ) : (
-                        <View>
-                            <ScrollView
-                                horizontal
-                                pagingEnabled
-                                showsHorizontalScrollIndicator={false}
-                                onScroll={(e) => {
-                                    const offset = e.nativeEvent.contentOffset.x;
-                                    const width = e.nativeEvent.layoutMeasurement.width;
-                                    setCurrentCategoryPage(Math.round(offset / width));
-                                }}
-                                scrollEventThrottle={16}
-                                style={styles.manualCategoriesPager}
+            <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setIsAmountFocused(false); }}>
+                <View style={styles.manualContainer}>
+                    <StatusBar barStyle="light-content" backgroundColor={imageUri ? '#111111' : gradientColors[0]} />
+                
+                {/* Top Half: Photo or Gradient */}
+                {imageUri ? (
+                    <View style={[styles.manualTopHalf, { paddingTop: insets.top, paddingHorizontal: 0, paddingBottom: 0 }, !isAmountFocused && { flex: 1.4 }, isAmountFocused && { flex: 0.5 }]}>
+                        <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                        {/* Dark overlay for readability */}
+                        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+                        
+                        <View style={{ flex: 1 }} />
+                        <View style={[styles.manualAmountGlassCard, { marginHorizontal: 20, marginBottom: 24 }]}>
+                            {/* The Glass Card inside Photo */}
+                            <TouchableOpacity 
+                                style={styles.manualAmountRow} 
+                                onPress={() => setIsAmountFocused(true)}
+                                activeOpacity={0.8}
                             >
-                                {(() => {
-                                    const items = [
-                                        ...categories.map(cat => ({ type: 'category' as const, data: cat })),
-                                        { type: 'add' as const, data: null }
-                                    ];
-                                    const pages: any[][] = [];
-                                    for (let i = 0; i < items.length; i += 8) {
-                                        pages.push(items.slice(i, i + 8));
-                                    }
-
-                                    return pages.map((page, pageIndex) => (
-                                        <View key={pageIndex} style={[styles.manualCategoryPage, { width: windowWidth - 40 }]}>
-                                            <View style={styles.manualCategoriesGrid}>
-                                                {page.map((item, idx) => {
-                                                    if (item.type === 'category') {
-                                                        const cat = item.data;
-                                                        const isSelected = categoryId === cat?.id;
-                                                        return (
-                                                            <TouchableOpacity
-                                                                key={cat?.id}
-                                                                style={styles.manualCategoryGridItem}
-                                                                onPress={() => setCategoryId(cat?.id || null)}
-                                                                activeOpacity={0.7}
-                                                            >
-                                                                <View style={[
-                                                                    styles.manualCatIconWrapper,
-                                                                    { backgroundColor: (cat?.color || '#6366F1') + (isSelected ? '40' : '15') },
-                                                                    isSelected && { borderWidth: 2, borderColor: cat?.color }
-                                                                ]}>
-                                                                    <Ionicons name={cat?.icon as any} size={24} color={cat?.color} />
-                                                                    {isSelected && (
-                                                                        <View style={[styles.manualCheckBadge, { backgroundColor: cat?.color }]}>
-                                                                            <Ionicons name="checkmark" size={10} color="#FFF" />
-                                                                        </View>
-                                                                    )}
-                                                                </View>
-                                                                <Text style={[styles.manualCatName, isSelected && { color: cat?.color, fontWeight: '700' }]} numberOfLines={1}>
-                                                                    {cat?.name}
-                                                                </Text>
-                                                            </TouchableOpacity>
-                                                        );
-                                                    } else {
-                                                        return (
-                                                            <TouchableOpacity
-                                                                key="add-btn"
-                                                                style={styles.manualCategoryGridItem}
-                                                                onPress={() => router.push(`/category-form?type=${type}` as any)}
-                                                                activeOpacity={0.7}
-                                                            >
-                                                                <View style={[styles.manualCatIconWrapper, { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed' }]}>
-                                                                    <Ionicons name="add" size={24} color="#6B7280" />
-                                                                </View>
-                                                                <Text style={styles.manualCatName} numberOfLines={1}>
-                                                                    Tạo mới
-                                                                </Text>
-                                                            </TouchableOpacity>
-                                                        );
-                                                    }
-                                                })}
-                                            </View>
-                                        </View>
-                                    ));
-                                })()}
-                            </ScrollView>
-
-                            {categories.length + 1 > 8 && (
-                                <View style={styles.manualPaginationDots}>
-                                    {Array.from({ length: Math.ceil((categories.length + 1) / 8) }).map((_, i) => (
-                                        <View
-                                            key={i}
-                                            style={[
-                                                styles.manualDot,
-                                                currentCategoryPage === i && styles.manualDotActive
-                                            ]}
-                                        />
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    )}
-
-                    <View style={styles.manualCardsSection}>
-                        <TouchableOpacity style={styles.manualCard} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
-                            <View style={[styles.manualCardIconBox, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="calendar" size={20} color="#6366F1" />
-                            </View>
-                            <View style={styles.manualCardContent}>
-                                <Text style={styles.manualCardLabel}>Ngày thực hiện</Text>
-                                <Text style={styles.manualCardValue}>{formatDate(date)}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.manualCard} onPress={() => setShowWalletModal(true)} activeOpacity={0.8}>
-                            <View style={[styles.manualCardIconBox, { backgroundColor: '#F3E8FF' }]}>
-                                <Ionicons name="wallet" size={20} color="#9333EA" />
-                            </View>
-                            <View style={styles.manualCardContent}>
-                                <Text style={styles.manualCardLabel}>Nguồn tiền / Ví</Text>
-                                <Text style={[styles.manualCardValue, !selectedWallet && { color: '#9CA3AF' }]}>
-                                    {selectedWallet ? selectedWallet.name : 'Chọn ví'}
+                                <Text style={[styles.manualAmountSign, !isExpense && { color: '#10B981' }]}>
+                                    {isExpense ? '-' : '+'}
                                 </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.manualCard} onPress={() => setShowMoodModal(true)} activeOpacity={0.8}>
-                            <View style={[styles.manualCardIconBox, { backgroundColor: '#FEF3C7' }]}>
-                                <Ionicons name="happy" size={20} color="#D97706" />
-                            </View>
-                            <View style={styles.manualCardContent}>
-                                <Text style={styles.manualCardLabel}>Tâm trạng chi tiêu</Text>
-                                <Text style={[styles.manualCardValue, !mood && { color: '#9CA3AF' }]}>
-                                    {mood ? MOODS.find(m => m.value === mood)?.label.replace('\n', ' ') : 'Chọn tâm trạng'}
+                                <Text style={styles.manualAmountValue} numberOfLines={1} adjustsFontSizeToFit>
+                                    {formatExpression(expression) || '0'}
                                 </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-                        </TouchableOpacity>
+                                <Text style={styles.manualAmountCurrency}>đ</Text>
+                            </TouchableOpacity>
 
-                        <View style={styles.manualCard}>
-                            <View style={[styles.manualCardIconBox, { backgroundColor: '#E0F2FE' }]}>
-                                <Ionicons name="pencil" size={20} color="#0284C7" />
-                            </View>
-                            <View style={styles.manualCardContent}>
-                                <Text style={styles.manualCardLabel}>Ghi chú thêm</Text>
+                            <View style={styles.manualNoteInputWrapper}>
+                                <Ionicons name="pencil" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
                                 <TextInput
-                                    style={styles.manualCardTextInput}
-                                    placeholder="Osaka, cà phê sáng..."
+                                    style={styles.manualNoteInput}
+                                    placeholder="Thêm chi tiết"
                                     placeholderTextColor="#9CA3AF"
                                     value={description}
                                     onChangeText={setDescription}
+                                    onFocus={() => setIsAmountFocused(false)}
                                 />
                             </View>
                         </View>
                     </View>
+                ) : (
+                    <LinearGradient
+                        colors={gradientColors as [string, string, string]}
+                        style={[styles.manualTopHalf, { paddingTop: insets.top }, !isAmountFocused && { flex: 1.4 }, isAmountFocused && { flex: 0.5 }]}
+                    >
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                            <View style={styles.manualBigCatIconContainer}>
+                                <TouchableOpacity 
+                                    style={styles.manualBigCatIconBg}
+                                    onPress={() => {
+                                        setIsAmountFocused(false);
+                                        setShowCategoryModal(true);
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name={catIcon as any} size={48} color="#FFFFFF" />
+                                </TouchableOpacity>
+                                <Text style={styles.manualBigCatName}>{catName}</Text>
+                            </View>
+                        </View>
 
-                    </ScrollView>
+                        <View style={styles.manualAmountGlassCard}>
+                            <TouchableOpacity 
+                                style={styles.manualAmountRow} 
+                                onPress={() => setIsAmountFocused(true)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.manualAmountSign, !isExpense && { color: '#10B981' }]}>
+                                    {isExpense ? '-' : '+'}
+                                </Text>
+                                <Text style={styles.manualAmountValue} numberOfLines={1} adjustsFontSizeToFit>
+                                    {formatExpression(expression) || '0'}
+                                </Text>
+                                <Text style={styles.manualAmountCurrency}>đ</Text>
+                            </TouchableOpacity>
 
-                    <View style={[styles.manualBottomFooter, { paddingBottom: insets.bottom > 0 ? insets.bottom + 4 : 16 }]}>
-                        <TouchableOpacity
-                            style={[styles.manualSubmitBtn, isSaving && { opacity: 0.7 }]}
-                            onPress={handleSave}
-                            disabled={isSaving}
-                            activeOpacity={0.95}
-                        >
-                            {isSaving ? (
-                                <ActivityIndicator color="#FFF" />
-                            ) : (
-                                <>
-                                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
-                                    <Text style={styles.manualSubmitBtnText}>Lưu giao dịch</Text>
-                                </>
+                            <View style={styles.manualNoteInputWrapper}>
+                                <Ionicons name="pencil" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
+                                <TextInput
+                                    style={styles.manualNoteInput}
+                                    placeholder="Thêm chi tiết"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    onFocus={() => setIsAmountFocused(false)}
+                                />
+                            </View>
+                        </View>
+                    </LinearGradient>
+                )}
+
+                {/* Bottom Half: Black Background */}
+                <View style={[styles.manualBottomHalf, isAmountFocused && { flex: 1.5, paddingTop: 8 }]}>
+                    
+                    {/* Selectors Row */}
+                    {(!isAmountFocused) && (
+                        <View style={{ flex: 1, justifyContent: 'center', paddingTop: 30 }}>
+                            {/* Mood Selector */}
+                            {!isAmountFocused && (
+                                <View style={styles.moodSelector}>
+                                    {(['happy', 'neutral', 'sad'] as const).map(m => (
+                                        <TouchableOpacity 
+                                            key={m} 
+                                            style={[styles.moodBtn, mood === m && styles.moodBtnActive]}
+                                            onPress={() => setMood(mood === m ? null : m)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Text style={styles.moodEmoji}>{m === 'happy' ? '😊' : m === 'neutral' ? '😐' : '😢'}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             )}
-                        </TouchableOpacity>
-                    </View>
-                </KeyboardAvoidingView>
+
+                            <View style={styles.manualSelectorsRow}>
+                                <TouchableOpacity 
+                                    style={[styles.manualSelectorPill, { borderColor: isExpense ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)' }]} 
+                                    onPress={() => { setIsAmountFocused(false); setShowCategoryModal(true); }}
+                                >
+                                    <Ionicons name={catIcon as any} size={14} color="#D1D5DB" />
+                                    <Text style={styles.manualSelectorText}>{catName}</Text>
+                                    <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity 
+                                    style={[styles.manualSelectorPill, { borderColor: isExpense ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)' }]} 
+                                    onPress={() => { setIsAmountFocused(false); setShowWalletModal(true); }}
+                                >
+                                    <Ionicons name="wallet" size={14} color="#D1D5DB" />
+                                    <Text style={styles.manualSelectorText}>{selectedWallet?.name || 'Wallet'}</Text>
+                                    <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Toggle Expense/Income Row */}
+                            <View style={styles.manualToggleRow}>
+                                <View style={styles.manualToggleContainer}>
+                                    <TouchableOpacity 
+                                        style={[styles.manualToggleBtn, isExpense && styles.manualToggleBtnActiveExpense]}
+                                        onPress={() => setType('EXPENSE')}
+                                    >
+                                        <Text style={[styles.manualToggleText, isExpense && { color: '#FFF' }]}>Chi tiêu</Text>
+                                        <Ionicons name="arrow-down-outline" size={16} color={isExpense ? "#FFF" : "#6B7280"} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={[styles.manualToggleBtn, !isExpense && styles.manualToggleBtnActiveIncome]}
+                                        onPress={() => setType('INCOME')}
+                                    >
+                                        <Text style={[styles.manualToggleText, !isExpense && { color: '#FFF' }]}>Thu nhập</Text>
+                                        <Ionicons name="arrow-up-outline" size={16} color={!isExpense ? "#FFF" : "#6B7280"} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Date Selector Row */}
+                            <View style={styles.manualDateRow}>
+                                <TouchableOpacity style={styles.manualSelectorPill} onPress={() => { setIsAmountFocused(false); setShowDatePicker(true); }}>
+                                    <Ionicons name="calendar" size={14} color="#D1D5DB" />
+                                    <Text style={styles.manualSelectorText}>{displayDate}</Text>
+                                    <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+
+                    <View style={{ flex: 1 }} />
+
+                    {/* Action Buttons or Numpad */}
+                    {isAmountFocused ? (
+                        <View style={styles.manualNumpadWrapper}>
+                            {isSaving ? (
+                                <ActivityIndicator size="large" color="#E87979" style={{ marginVertical: 40 }} />
+                            ) : (
+                                <CustomNumpad 
+                                    value={expression} 
+                                    onValueChange={setExpression} 
+                                    onSubmit={() => setIsAmountFocused(false)} 
+                                />
+                            )}
+                        </View>
+                    ) : (
+                        <View style={styles.actionButtonsRow}>
+                            <View style={styles.actionRoundBtnContainer}>
+                                <TouchableOpacity 
+                                    style={styles.actionRoundBtnCancel} 
+                                    onPress={() => {
+                                        if (imageUri) {
+                                            setImageUri(null);
+                                            setInputMode('camera_capture');
+                                        } else {
+                                            router.back();
+                                        }
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Ionicons name="close" size={24} color="#9CA3AF" />
+                                </TouchableOpacity>
+                                <Text style={styles.actionRoundBtnText}>Hủy</Text>
+                            </View>
+
+                            <TouchableOpacity style={styles.actionSaveBtnOuter} onPress={handleSave} activeOpacity={0.8}>
+                                <View style={styles.actionSaveBtnInner}>
+                                    {isSaving ? (
+                                        <ActivityIndicator color="#FFF" />
+                                    ) : (
+                                        <Ionicons name="checkmark" size={32} color="#FFF" />
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                            
+                            <View style={styles.actionRoundBtnContainer}>
+                                {/* Empty container to keep the Save button centered */}
+                            </View>
+                        </View>
+                    )}
+                </View>
 
                 <Modal visible={showCategoryModal} animationType="slide" transparent={true}>
                     <View style={styles.modalOverlay}>
@@ -970,497 +884,50 @@ export default function AddTransactionScreen() {
                         </View>
                     </View>
                 </Modal>
+
+                <CustomDatePicker
+                    visible={showDatePicker}
+                    onClose={() => setShowDatePicker(false)}
+                    initialDate={date}
+                    onSelect={(selectedDate) => {
+                        setDate(selectedDate);
+                    }}
+                />
             </View>
+            </TouchableWithoutFeedback>
         );
     }
-
-    return (
-        <View style={styles.container}>
-            <StatusBar 
-                barStyle={imageUri ? "light-content" : "dark-content"} 
-                translucent 
-                backgroundColor="transparent" 
-            />
-            <View style={[styles.imageContainer, { flex: 1 }]}>
-                {imageUri ? (
-                    <View style={StyleSheet.absoluteFillObject}>
-                        <Image source={{ uri: imageUri }} style={styles.transactionImage} resizeMode="cover" />
-                        <LinearGradient
-                            colors={['rgba(0, 0, 0, 0.45)', 'rgba(0, 0, 0, 0.05)', 'transparent']}
-                            style={StyleSheet.absoluteFillObject}
-                            start={{ x: 0.5, y: 0 }}
-                            end={{ x: 0.5, y: 0.45 }}
-                        />
-                    </View>
-                ) : (
-                    <View style={styles.imagePlaceholder}>
-                        <Ionicons name="image-outline" size={44} color="#6366F1" />
-                        <Text style={styles.imagePlaceholderText}>Quét hóa đơn thông minh hoặc chọn ảnh có sẵn 📸</Text>
-                        <View style={styles.placeholderButtons}>
-                            <TouchableOpacity style={styles.placeholderBtn} onPress={() => handlePickImage(true)} activeOpacity={0.8}>
-                                <Ionicons name="camera" size={14} color="#FFF" style={{ marginRight: 6 }} />
-                                <Text style={styles.placeholderBtnText}>Chụp ảnh</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.placeholderBtn, { backgroundColor: '#6366F1' }]} onPress={() => handlePickImage(false)} activeOpacity={0.8}>
-                                <Ionicons name="images" size={14} color="#FFF" style={{ marginRight: 6 }} />
-                                <Text style={styles.placeholderBtnText}>Thư viện</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
-                {isScanning && (
-                    <View style={styles.scanningOverlay}>
-                        <ActivityIndicator size="large" color="#6366F1" />
-                        <Text style={styles.scanningText}>AI đang phân tích hóa đơn... 🤖⚡</Text>
-                    </View>
-                )}
-
-                <View style={[styles.topOverlayControls, { top: insets.top > 0 ? insets.top + 8 : 16 }]}>
-                    <TouchableOpacity 
-                        style={styles.overlayCircleBtnText} 
-                        onPress={() => {
-                            if (imageUri) {
-                                setImageUri(null);
-                                setInputMode('camera_capture');
-                            } else {
-                                router.back();
-                            }
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.overlayCancelText}>Hủy</Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.topRightControls}>
-                        {user && !user.isPremium && (
-                            <TouchableOpacity 
-                                style={[styles.overlayCircleBtnText, { marginRight: 8 }]} 
-                                onPress={() => setInputMode('manual')}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.overlayCancelText}>Nhập chi tiết</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity style={styles.overlayCircleBtn} onPress={() => handlePickImage(false)} activeOpacity={0.7}>
-                            <Ionicons name="images-outline" size={18} color="#FFF" />
-                        </TouchableOpacity>
-                        {imageUri && (
-                            <TouchableOpacity 
-                                style={[styles.overlayCircleBtn, { marginLeft: 8, backgroundColor: 'rgba(239, 68, 68, 0.8)' }]} 
-                                onPress={() => {
-                                    setImageUri(null);
-                                    setInputMode('camera_capture');
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="trash-outline" size={18} color="#FFF" />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-
-                <View style={styles.centerGlassBox}>
-                    <Text style={styles.glassAmountText} numberOfLines={1} adjustsFontSizeToFit>
-                        {type === 'EXPENSE' ? '-' : '+'} {formatExpression(expression)} đ
-                    </Text>
-                    <TouchableOpacity 
-                        style={styles.glassDetailBtn}
-                        onPress={() => setShowDescriptionModal(true)}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="pencil" size={12} color="#6366F1" style={{ marginRight: 6 }} />
-                        <Text style={styles.glassDetailText}>
-                            {description ? description : 'Thêm ghi chú giao dịch'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            <View style={[styles.whiteBody, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
-                <View style={[styles.pillsContainer, { marginBottom: isSmallScreen ? 8 : 16 }]}>
-                    <View style={[styles.pillsDoubleRow, { gap: isSmallScreen ? 8 : 10, marginBottom: isSmallScreen ? 6 : 10 }]}>
-                        <TouchableOpacity 
-                            style={[styles.pillButton, styles.pillCategory]} 
-                            onPress={() => setShowCategoryModal(true)}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons 
-                                name={categories.find(c => c.id === categoryId)?.icon as any || "grid-outline"} 
-                                size={14} 
-                                color="#6366F1" 
-                                style={{ marginRight: 6 }} 
-                            />
-                            <Text style={styles.pillButtonTextCategory}>
-                                {categories.find(c => c.id === categoryId)?.name || 'Danh mục'}
-                            </Text>
-                            <Ionicons name="chevron-down" size={12} color="#6366F1" style={{ marginLeft: 6 }} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity 
-                            style={[styles.pillButton, styles.pillWallet]} 
-                            onPress={() => setShowWalletModal(true)}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="wallet-outline" size={14} color="#374151" style={{ marginRight: 6 }} />
-                            <Text style={styles.pillButtonTextWallet}>
-                                {selectedWallet ? selectedWallet.name : 'Chọn ví'}
-                            </Text>
-                            <Ionicons name="chevron-down" size={12} color="#9CA3AF" style={{ marginLeft: 6 }} />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.switcherRow, { marginVertical: isSmallScreen ? 2 : 4 }]}>
-                        <View style={styles.calcSegmentedControl}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.calcSegmentBtn,
-                                    type === 'EXPENSE' && { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }
-                                ]}
-                                onPress={() => setType('EXPENSE')}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons name="arrow-down-circle-outline" size={14} color={type === 'EXPENSE' ? '#EF4444' : '#9CA3AF'} style={{ marginRight: 6 }} />
-                                <Text style={[
-                                    styles.calcSegmentText,
-                                    type === 'EXPENSE' ? { color: '#EF4444', fontWeight: '700' } : { color: '#9CA3AF' }
-                                ]}>
-                                    Chi tiêu
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[
-                                    styles.calcSegmentBtn,
-                                    type === 'INCOME' && { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }
-                                ]}
-                                onPress={() => setType('INCOME')}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons name="arrow-up-circle-outline" size={14} color={type === 'INCOME' ? '#10B981' : '#9CA3AF'} style={{ marginRight: 6 }} />
-                                <Text style={[
-                                    styles.calcSegmentText,
-                                    type === 'INCOME' ? { color: '#10B981', fontWeight: '700' } : { color: '#9CA3AF' }
-                                ]}>
-                                    Thu nhập
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={[styles.pillsDoubleRow, { gap: isSmallScreen ? 8 : 10, marginBottom: isSmallScreen ? 6 : 10 }]}>
-                        <TouchableOpacity 
-                            style={styles.pillButton} 
-                            onPress={() => setShowDatePicker(true)}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="calendar-outline" size={14} color="#374151" style={{ marginRight: 6 }} />
-                            <Text style={styles.pillButtonTextWallet}>
-                                {date && date.toDateString() === new Date().toDateString() 
-                                    ? 'Hôm nay' 
-                                    : date 
-                                    ? `Ngày ${date.getDate()} Thg ${date.getMonth() + 1}` 
-                                    : 'Hôm nay'}
-                            </Text>
-                            <Ionicons name="chevron-down" size={12} color="#9CA3AF" style={{ marginLeft: 6 }} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity 
-                            style={[
-                                styles.pillButton, 
-                                { 
-                                    backgroundColor: getMoodTheme(mood).bg, 
-                                    borderColor: getMoodTheme(mood).border 
-                                }
-                            ]} 
-                            onPress={() => setShowMoodModal(true)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={{ fontSize: 14, marginRight: 6 }}>
-                                {getMoodTheme(mood).emoji}
-                            </Text>
-                            <Text style={[styles.pillButtonTextWallet, { color: getMoodTheme(mood).textColor }]}>
-                                {mood ? MOODS.find(m => m.value === mood)?.label.replace('\n', ' ') : 'Tâm trạng'}
-                            </Text>
-                            <Ionicons name="chevron-down" size={12} color={getMoodTheme(mood).textColor} style={{ marginLeft: 6 }} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Light Calculator Keyboard */}
-                <View style={[styles.keyboardContainer, { marginTop: isSmallScreen ? 4 : 8 }]}>
-                    <View style={[styles.keyboardRow, { gap: rowGap, marginBottom: rowGap }]}>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('C')} activeOpacity={0.7}>
-                            <Text style={[styles.keyText, { color: '#EF4444' }]}>C</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('backspace')} activeOpacity={0.7}>
-                            <Ionicons name="backspace-outline" size={20} color="#6B7280" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('000')} activeOpacity={0.7}>
-                            <Text style={styles.keyTextOperator}>000</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('/')} activeOpacity={0.7}>
-                            <Text style={[styles.keyTextOperator, { color: '#6366F1' }]}>÷</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.keyboardRow, { gap: rowGap, marginBottom: rowGap }]}>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('7')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>7</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('8')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>8</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('9')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>9</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('*')} activeOpacity={0.7}>
-                            <Text style={[styles.keyTextOperator, { color: '#6366F1' }]}>×</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.keyboardRow, { gap: rowGap, marginBottom: rowGap }]}>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('4')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>4</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('5')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>5</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('6')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>6</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('-')} activeOpacity={0.7}>
-                            <Text style={[styles.keyTextOperator, { color: '#6366F1' }]}>-</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.keyboardRow, { gap: rowGap, marginBottom: rowGap }]}>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('1')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>1</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('2')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>2</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('3')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>3</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.operatorKey, { height: keyHeight }]} onPress={() => handleKeyPress('+')} activeOpacity={0.7}>
-                            <Text style={[styles.keyTextOperator, { color: '#6366F1' }]}>+</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.keyboardRow, { gap: rowGap, marginBottom: rowGap }]}>
-                        <TouchableOpacity style={[styles.keyButton, { flex: 2, height: keyHeight }]} onPress={() => handleKeyPress('0')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>0</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, { height: keyHeight }]} onPress={() => handleKeyPress('.')} activeOpacity={0.7}>
-                            <Text style={styles.keyText}>.</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.keyButton, styles.submitKey, { height: keyHeight }]} onPress={() => handleKeyPress('submit')} activeOpacity={0.7}>
-                            <Ionicons name="checkmark" size={24} color="#FFF" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
-
-            <CustomDatePicker
-                visible={showDatePicker}
-                onClose={() => setShowDatePicker(false)}
-                initialDate={date}
-                onSelect={(selectedDate) => {
-                    setDate(selectedDate);
-                }}
-            />
-
-            <Modal visible={showDescriptionModal} animationType="fade" transparent={true}>
-                <View style={styles.darkModalOverlay}>
-                    <View style={styles.glassModalContent}>
-                        <Text style={styles.glassModalTitle}>Ghi chú giao dịch</Text>
-                        <TextInput
-                            style={styles.glassModalInput}
-                            placeholder="大阪で昼ご飯, Cà phê Highland..."
-                            placeholderTextColor="#9CA3AF"
-                            value={description}
-                            onChangeText={setDescription}
-                            autoFocus={true}
-                        />
-                        <TouchableOpacity 
-                            style={styles.glassModalBtn} 
-                            onPress={() => setShowDescriptionModal(false)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.glassModalBtnText}>Xác nhận</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
-            <Modal visible={showCategoryModal} animationType="slide" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Chọn Danh mục</Text>
-                            <TouchableOpacity onPress={() => setShowCategoryModal(false)} style={styles.modalCloseBtn}>
-                                <Ionicons name="close" size={20} color="#374151" />
-                            </TouchableOpacity>
-                        </View>
-                        
-                        {loading ? (
-                            <ActivityIndicator size="large" color="#6366F1" style={{ marginVertical: 40 }} />
-                        ) : (
-                            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-                                <View style={styles.categoriesModalGrid}>
-                                    {categories.map(cat => {
-                                        const isSelected = categoryId === cat.id;
-                                        return (
-                                            <TouchableOpacity
-                                                key={cat.id}
-                                                style={styles.categoryModalItem}
-                                                onPress={() => {
-                                                    setCategoryId(cat.id);
-                                                    setShowCategoryModal(false);
-                                                }}
-                                                activeOpacity={0.7}
-                                            >
-                                                <View style={[
-                                                    styles.catIconWrapper,
-                                                    { backgroundColor: cat.color + (isSelected ? '40' : '15') },
-                                                    isSelected && { borderWidth: 2.5, borderColor: cat.color }
-                                                ]}>
-                                                    <Ionicons name={cat.icon as any} size={24} color={cat.color} />
-                                                </View>
-                                                <Text style={[styles.catName, isSelected && { color: cat.color, fontWeight: '800' }]} numberOfLines={1}>
-                                                    {cat.name}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                    
-                                    <TouchableOpacity
-                                        style={styles.categoryModalItem}
-                                        onPress={() => {
-                                            setShowCategoryModal(false);
-                                            router.push(`/category-form?type=${type}` as any);
-                                        }}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View style={[styles.catIconWrapper, { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed' }]}>
-                                            <Ionicons name="add" size={24} color="#6B7280" />
-                                        </View>
-                                        <Text style={styles.catName} numberOfLines={1}>
-                                            Thêm mới
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </ScrollView>
-                        )}
-                    </View>
-                </View>
-            </Modal>
-
-            <Modal visible={showWalletModal} animationType="slide" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Chọn Ví tiền</Text>
-                            <TouchableOpacity onPress={() => setShowWalletModal(false)} style={styles.modalCloseBtn}>
-                                <Ionicons name="close" size={20} color="#374151" />
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView>
-                            {wallets.map(w => (
-                                <TouchableOpacity
-                                    key={w.id}
-                                    style={styles.listRow}
-                                    onPress={() => {
-                                        setWalletId(w.id);
-                                        setShowWalletModal(false);
-                                    }}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={[styles.cardIconBox, { backgroundColor: '#EEF2FF' }]}>
-                                        <Ionicons name="wallet" size={22} color="#6366F1" />
-                                    </View>
-                                    <View style={styles.walletInfo}>
-                                        <Text style={styles.walletName}>{w.name}</Text>
-                                        <Text style={styles.walletBal}>{w.balance.toLocaleString('vi-VN')} đ</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
-
-            <Modal visible={showMoodModal} animationType="slide" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Chọn tâm trạng</Text>
-                            <TouchableOpacity onPress={() => setShowMoodModal(false)} style={styles.modalCloseBtn}>
-                                <Ionicons name="close" size={20} color="#374151" />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.categoriesModalGrid}>
-                            {MOODS.map(m => {
-                                const isSelected = mood === m.value;
-                                return (
-                                    <TouchableOpacity
-                                        key={m.value}
-                                        style={styles.categoryModalItem}
-                                        onPress={() => {
-                                            setMood(m.value);
-                                            setShowMoodModal(false);
-                                        }}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View style={[
-                                            styles.catIconWrapper,
-                                            { backgroundColor: isSelected ? 'rgba(251, 191, 36, 0.15)' : '#F3F4F6' },
-                                            isSelected && { borderWidth: 2, borderColor: '#F59E0B' }
-                                        ]}>
-                                            <Text style={{ fontSize: 26 }}>{m.emoji}</Text>
-                                        </View>
-                                        <Text style={[styles.catName, isSelected && { color: '#F59E0B', fontWeight: '800' }]} numberOfLines={2}>
-                                            {m.label.replace('\n', ' ')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-        </View>
-    );
-}
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFFFFF' },
     
     // Camera captures view
-    captureContainer: { flex: 1, backgroundColor: '#000000' },
+    captureContainer: { flex: 1, backgroundColor: '#111111' },
     captureHeader: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', paddingHorizontal: 16 },
-    captureCancelBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 },
-    cameraFrame: { flex: 1, overflow: 'hidden', marginHorizontal: 20, borderRadius: 24, backgroundColor: '#000000', borderWidth: 1, borderColor: '#1F2937' },
+    captureCancelBtn: { paddingHorizontal: 18, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
+    captureCancelText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
+    cameraFrame: { flex: 1, overflow: 'hidden', marginHorizontal: 20, borderRadius: 32, backgroundColor: '#000000', marginTop: 10 },
     cameraView: { flex: 1, justifyContent: 'space-between', padding: 16 },
     cameraInnerTop: { flexDirection: 'row', justifyContent: 'space-between' },
-    cameraInnerBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-    zoomContainer: { flexDirection: 'row', gap: 8, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 4, borderRadius: 18 },
-    zoomPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    zoomPillActive: { backgroundColor: '#FFFFFF' },
-    zoomText: { color: '#CCCCCC', fontSize: 11, fontWeight: '700' },
-    zoomTextActive: { color: '#000000' },
+    cameraInnerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+    zoomContainer: { flexDirection: 'row', gap: 4, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 6, borderRadius: 20, marginBottom: 10 },
+    zoomPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+    zoomPillActive: { backgroundColor: 'transparent' },
+    zoomText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+    zoomTextActive: { color: '#FBBF24' },
     cameraPermContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14 },
     cameraPermText: { color: '#9CA3AF', fontSize: 13, fontWeight: '600' },
     cameraPermBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: '#6366F1' },
     cameraPermBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-    captureBottomControls: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 30, paddingVertical: 24 },
-    captureOuterCircle: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' },
-    captureInnerCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFFFFF' },
-    libraryCapsule: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)' },
-    libraryCapsuleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-    skipBtn: { paddingVertical: 10, paddingHorizontal: 14 },
-    skipBtnText: { color: '#9CA3AF', fontSize: 12, fontWeight: '700' },
+    captureBottomControls: { alignItems: 'center', paddingHorizontal: 30, paddingBottom: 40, paddingTop: 20 },
+    captureButtonContainer: { alignItems: 'center', marginBottom: 24 },
+    captureGradientRing: { width: 84, height: 84, borderRadius: 42, padding: 4, justifyContent: 'center', alignItems: 'center' },
+    captureOuterCircle: { width: '100%', height: '100%', borderRadius: 40, backgroundColor: '#111111', padding: 4, justifyContent: 'center', alignItems: 'center' },
+    captureInnerCircle: { width: '100%', height: '100%', borderRadius: 40, backgroundColor: '#FFFFFF' },
+    libraryCapsule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 24, backgroundColor: 'rgba(217, 70, 239, 0.15)', alignSelf: 'center', marginBottom: 20 },
+    libraryCapsuleText: { color: '#D946EF', fontSize: 14, fontWeight: '600' },
+    skipBtn: { paddingVertical: 10, alignSelf: 'center' },
+    skipBtnText: { color: '#9CA3AF', fontSize: 14, fontWeight: '500' },
 
     // Top Card / Image area
     imageContainer: {
@@ -1473,6 +940,12 @@ const styles = StyleSheet.create({
     transactionImage: { width: '100%', height: '100%' },
     imagePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB', paddingHorizontal: 20 },
     imagePlaceholderText: { color: '#6B7280', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 10, marginBottom: 14, paddingHorizontal: 24 },
+    
+    moodSelector: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16, gap: 16 },
+    moodBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+    moodBtnActive: { backgroundColor: '#FCE7F3', borderColor: '#EC4899' },
+    moodEmoji: { fontSize: 24 },
+
     placeholderButtons: { flexDirection: 'row', gap: 10 },
     placeholderBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
     placeholderBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
@@ -1527,50 +1000,43 @@ const styles = StyleSheet.create({
     operatorKey: { backgroundColor: '#EEF2FF', borderColor: '#D9E2FC' },
     submitKey: { backgroundColor: '#6366F1', borderColor: '#4F46E5', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 },
 
-    // Manual input screen
-    manualContainer: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
-    manualHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-    manualHeaderIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F9FAFB', justifyContent: 'center', alignItems: 'center' },
-    manualHeaderTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-    manualScrollContent: { flex: 1, backgroundColor: '#FFFFFF' },
-    manualScrollContentContainer: { padding: 20 },
-    manualSegmentedControl: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 16, padding: 4, marginBottom: 20 },
-    manualSegmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
-    manualSegmentBtnActiveExpense: { backgroundColor: '#EF4444', shadowColor: '#EF4444', shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 },
-    manualSegmentBtnActiveIncome: { backgroundColor: '#10B981', shadowColor: '#10B981', shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 },
-    manualSegmentText: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
-    manualSegmentTextActive: { color: '#FFFFFF' },
-    manualAmountSection: { marginBottom: 24 },
-    manualAmountLabel: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 8 },
-    manualAmountRow: { flexDirection: 'row', alignItems: 'center' },
-    manualAmountInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, paddingHorizontal: 16, height: 48 },
-    manualAmountInput: { flex: 1, fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
-    manualCurrencySymbol: { fontSize: 14, fontWeight: '700', color: '#6B7280', paddingLeft: 6 },
-    manualBudgetWarning: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 10, borderRadius: 10, borderWidth: 1 },
-    manualBudgetExceeded: { backgroundColor: '#FEF2F2', borderColor: '#FEE2E2' },
-    manualBudgetNearLimit: { backgroundColor: '#FFFBEB', borderColor: '#FEF3C7' },
-    manualBudgetWarningText: { fontSize: 11, fontWeight: '600' },
-    manualSectionTitle: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 12 },
-    manualCategoriesPager: { marginHorizontal: -20, marginBottom: 14 },
-    manualCategoryPage: { paddingHorizontal: 20 },
-    manualCategoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    manualCategoryGridItem: { width: (width - 76) / 4, alignItems: 'center', marginBottom: 12 },
-    manualCatIconWrapper: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-    manualCheckBadge: { position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
-    manualCatName: { fontSize: 11, fontWeight: '600', color: '#4B5563', marginTop: 6, textAlign: 'center', width: '100%' },
-    manualPaginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 16 },
-    manualDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB' },
-    manualDotActive: { backgroundColor: '#6366F1', width: 12 },
-    manualCardsSection: { gap: 12, marginBottom: 20 },
-    manualCard: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 12, alignItems: 'center' },
-    manualCardIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-    manualCardContent: { flex: 1 },
-    manualCardLabel: { fontSize: 10, color: '#9CA3AF', fontWeight: '700', letterSpacing: 0.5 },
-    manualCardValue: { fontSize: 13, fontWeight: '700', color: '#1F2937', marginTop: 3 },
-    manualCardTextInput: { fontSize: 13, fontWeight: '700', color: '#1F2937', padding: 0, marginTop: 3 },
-    manualBottomFooter: { paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-    manualSubmitBtn: { flexDirection: 'row', backgroundColor: '#6366F1', borderRadius: 14, paddingVertical: 14, justifyContent: 'center', alignItems: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
-    manualSubmitBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+    // Manual input screen (New Redesign)
+    manualContainer: { flex: 1, backgroundColor: '#111111' },
+    manualTopHalf: { flex: 1, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, paddingBottom: 24, paddingHorizontal: 20, overflow: 'hidden' },
+    manualBottomHalf: { flex: 1.2, backgroundColor: '#111111', paddingTop: 16, paddingHorizontal: 16 },
+    manualHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    manualHeaderIconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+    manualCameraBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+    manualBigCatIconContainer: { alignItems: 'center', marginBottom: 20 },
+    manualBigCatIconBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+    manualBigCatName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+    manualAmountGlassCard: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)' },
+    manualAmountRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+    manualAmountSign: { fontSize: 24, fontWeight: '700', color: '#EF4444', marginRight: 8, marginTop: 4 },
+    manualAmountValue: { fontSize: 44, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
+    manualAmountCurrency: { fontSize: 18, fontWeight: '700', color: '#D1D5DB', marginLeft: 8, marginTop: 12 },
+    manualNoteInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.2)', borderRadius: 16, paddingHorizontal: 16, height: 44 },
+    manualNoteInput: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '500' },
+    manualSelectorsRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 16 },
+    manualSelectorPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#374151', gap: 6 },
+    manualSelectorText: { fontSize: 13, fontWeight: '700', color: '#D1D5DB' },
+    manualToggleRow: { alignItems: 'center', marginBottom: 16 },
+    manualToggleContainer: { flexDirection: 'row', backgroundColor: '#1F2937', borderRadius: 20, padding: 4, width: 200 },
+    manualToggleBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+    manualToggleText: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
+    manualToggleBtnActiveExpense: { backgroundColor: '#EF4444' },
+    manualToggleBtnActiveIncome: { backgroundColor: '#10B981' },
+    manualDateRow: { alignItems: 'center', marginBottom: 8 },
+    manualNumpadWrapper: { marginTop: 'auto', marginBottom: 0, marginHorizontal: -16 },
+    
+    // Action Buttons
+    actionButtonsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 40, paddingBottom: 24, marginTop: 'auto' },
+    actionRoundBtnContainer: { alignItems: 'center', justifyContent: 'flex-start', width: 64 },
+    actionRoundBtnCancel: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#3F3F46' },
+    actionRoundBtnText: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', textAlign: 'center' },
+    actionSaveBtnOuter: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#3F3F46' },
+    actionSaveBtnInner: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#3F3F46', justifyContent: 'center', alignItems: 'center' },
+
     
     // Modal controls general
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

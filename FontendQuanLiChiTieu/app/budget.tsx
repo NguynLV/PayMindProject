@@ -47,7 +47,7 @@ export default function BudgetScreen() {
             setIsSuggesting(true);
             const u = await UserService.getMyProfile();
             if (!u.isPremium) {
-                toast.error('Premium hội mới được dùng nha! ⚡👑', 'Nâng cấp Premium để mở khóa đề xuất AI homie ơi.');
+                toast.error('Yêu cầu tài khoản Premium', 'Vui lòng nâng cấp Premium để sử dụng tính năng đề xuất AI.');
                 setTimeout(() => {
                     router.push('/premium');
                 }, 1500);
@@ -88,8 +88,8 @@ export default function BudgetScreen() {
 
     const confirmDelete = (budget: BudgetResponse) => {
         toast.confirm(
-            'Xóa luôn không? 🗑️',
-            `Bạn chắc muốn xóa ngân sách "${budget.name}" không? Xóa rồi không lấy lại được nha!`,
+            'Xác nhận xóa',
+            `Bạn có chắc chắn muốn xóa ngân sách "${budget.name}" không? Hành động này không thể hoàn tác.`,
             async () => {
                 try {
                     await BudgetService.deleteBudget(budget.id);

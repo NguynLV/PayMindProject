@@ -42,7 +42,7 @@ export default function WalletFormScreen() {
 
     const handleSave = async () => {
         if (!name.trim()) {
-            toast.error('Thiếu thông tin kìa! 😅', 'Vui lòng nhập tên ví nha bạn ơi');
+            toast.error('Thiếu thông tin', 'Vui lòng nhập tên ví.');
             return;
         }
 

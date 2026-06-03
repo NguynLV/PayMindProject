@@ -17,22 +17,12 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GoogleSignin, statusCodes, isErrorWithCode } from '@/utils/google-auth';
+
 import AuthService from '@/services/auth.service';
 import { saveToken } from '@/services/api';
 import { useToast } from '@/components/common/Toast';
 
-const GOOGLE_WEB_CLIENT_ID = '473436450565-hih6p9ftkiudpi2tplnml8p3pevg2h7q.apps.googleusercontent.com';
-const GOOGLE_IOS_CLIENT_ID = '473436450565-lbmqavb9i5ogs02gfie2970io80eatks.apps.googleusercontent.com';
-const GOOGLE_ANDROID_CLIENT_ID = '473436450565-l0crld2pm33rm1ie2gdkt3kava9h98ah.apps.googleusercontent.com';
 
-if (GoogleSignin) {
-    GoogleSignin.configure({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        iosClientId: GOOGLE_IOS_CLIENT_ID,
-        offlineAccess: true,
-    });
-}
 
 const { width } = Dimensions.get('window');
 
@@ -66,7 +56,7 @@ export default function LoginScreen() {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            toast.error('Thiếu thông tin rồi!', 'Nhập đầy đủ email và mật khẩu nha.');
+            toast.error('Thiếu thông tin', 'Vui lòng điền đầy đủ email và mật khẩu.');
             return;
         }
 
@@ -84,64 +74,18 @@ export default function LoginScreen() {
                 router.replace('/(tabs)');
             } else {
                 setLoading(false);
-                toast.error('Sai rồi bạn êi!', 'Email hoặc mật khẩu không đúng. Kiểm tra lại nha.');
+                toast.error('Đăng nhập thất bại', 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.');
             }
         } catch (error: any) {
             setLoading(false);
-            const errorMsg = error?.response?.data?.message || error.message || 'Đã có lỗi xảy ra';
-            toast.error('Có lỗi xảy ra!', errorMsg);
+            let errorMsg = error?.response?.data?.message || error.message || 'Đã có lỗi xảy ra';
+            if (error?.response?.status === 401 || errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+                errorMsg = 'Sai email hoặc mật khẩu. Vui lòng thử lại!';
+            }
+            toast.error('Đăng nhập thất bại', errorMsg);
         }
     };
 
-    const handleGoogleLogin = async () => {
-        if (!GoogleSignin) {
-            toast.info('Thông báo', 'Tính năng đăng nhập Google hiện chưa hỗ trợ trên Expo Go. Vui lòng dùng bản build chính thức.');
-            return;
-        }
-        setGoogleLoading(true);
-        try {
-            await GoogleSignin.hasPlayServices();
-            try { await GoogleSignin.signOut(); } catch (e) {}
-            const userInfo = await GoogleSignin.signIn();
-            const idToken = userInfo.data?.idToken;
-
-            if (idToken) {
-                const res = await AuthService.loginWithGoogle(idToken);
-                if (res.authenticated) {
-                    await saveToken(res.token);
-                    if (res.isNewUser) {
-                        router.replace('/auth/onboarding');
-                    } else {
-                        router.replace('/(tabs)');
-                    }
-                } else {
-                    toast.error('Có lỗi xảy ra!', 'Không thể xác thực tài khoản Google với máy chủ');
-                }
-            } else {
-                toast.error('Có lỗi xảy ra!', 'Không lấy được thông tin đăng nhập từ Google');
-            }
-        } catch (error: any) {
-            if (isErrorWithCode(error)) {
-                switch (error.code) {
-                    case statusCodes.SIGN_IN_CANCELLED:
-                        console.log('Google Sign-In Cancelled');
-                        break;
-                    case statusCodes.IN_PROGRESS:
-                        console.log('Google Sign-In in progress');
-                        break;
-                    case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-                        toast.error('Có lỗi xảy ra!', 'Google Play Services không khả dụng trên thiết bị của bạn');
-                        break;
-                    default:
-                        toast.error('Có lỗi xảy ra!', error.message || 'Thất bại');
-                }
-            } else {
-                toast.error('Có lỗi xảy ra!', error.message || 'Thất bại');
-            }
-        } finally {
-            setGoogleLoading(false);
-        }
-    };
 
     return (
         <SafeAreaView style={styles.root}>
@@ -244,33 +188,7 @@ export default function LoginScreen() {
                             )}
                         </TouchableOpacity>
 
-                        {/* Divider */}
-                        <View style={styles.dividerRow}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>HOẶC TIẾP TỤC VỚI</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
 
-                        {/* Social Google Login */}
-                        <View style={styles.socialRow}>
-                            <TouchableOpacity
-                                style={[styles.googleBtn, googleLoading && styles.googleBtnDisabled]}
-                                activeOpacity={0.85}
-                                onPress={handleGoogleLogin}
-                                disabled={googleLoading}
-                            >
-                                {googleLoading ? (
-                                    <ActivityIndicator size={20} color="#6366F1" />
-                                ) : (
-                                    <Image
-                                        source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
-                                        style={styles.googleLogoImg}
-                                        resizeMode="contain"
-                                    />
-                                )}
-                                <Text style={styles.googleBtnText}>Tiếp tục với Google</Text>
-                            </TouchableOpacity>
-                        </View>
 
                         {/* Link Register */}
                         <View style={styles.registerRow}>

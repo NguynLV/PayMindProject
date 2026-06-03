@@ -29,14 +29,14 @@ export default function ForgotPasswordScreen() {
 
     const handleSend = async () => {
         if (!email.trim()) {
-            toast.error('Thiếu thông tin kìa! 😅', 'Vui lòng nhập địa chỉ email của bạn nha');
+            toast.error('Thiếu thông tin', 'Vui lòng nhập địa chỉ email của bạn.');
             return;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
             setEmailError('Email không đúng định dạng');
-            toast.error('Ủa sai rồi! 🥲', 'Email không đúng định dạng, kiểm tra lại nha');
+            toast.error('Email không hợp lệ', 'Email nhập vào chưa đúng định dạng. Vui lòng kiểm tra lại.');
             return;
         }
 
@@ -44,11 +44,11 @@ export default function ForgotPasswordScreen() {
         try {
             await AuthService.forgotPassword({ email });
             setLoading(false);
-            toast.success('Xịn sò! 🎉', 'Mã OTP đã được gửi, kiểm tra hộp thư nha!');
+            toast.success('Thành công', 'Mã OTP đã được gửi, vui lòng kiểm tra hộp thư của bạn.');
             setTimeout(() => router.push({ pathname: '/auth/reset-password', params: { email } }), 1200);
         } catch (error: any) {
             setLoading(false);
-            toast.error('Có lỗi xảy ra! ❌', error?.response?.data?.message || 'Email không tồn tại trong hệ thống nha');
+            toast.error('Lỗi', error?.response?.data?.message || 'Email không tồn tại trong hệ thống.');
         }
     };
 

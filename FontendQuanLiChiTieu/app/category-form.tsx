@@ -55,7 +55,7 @@ export default function CategoryFormScreen() {
 
     const handleSave = async () => {
         if (!name.trim()) {
-            toast.error('Thiếu tên nhóm!', 'Vui lòng nhập tên nhóm nha homie.');
+            toast.error('Thiếu tên nhóm', 'Vui lòng nhập tên nhóm.');
             return;
         }
 
@@ -70,7 +70,7 @@ export default function CategoryFormScreen() {
             router.back();
         } catch (error) {
             console.log(error);
-            toast.error('Lưu thất bại!', 'Không thể lưu nhóm lúc này. Thử lại sau nha.');
+            toast.error('Lưu thất bại', 'Không thể lưu nhóm lúc này. Vui lòng thử lại sau.');
         } finally {
             setSaving(false);
         }
