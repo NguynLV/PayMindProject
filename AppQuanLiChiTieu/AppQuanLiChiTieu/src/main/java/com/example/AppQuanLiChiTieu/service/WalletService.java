@@ -38,6 +38,20 @@ public class WalletService {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         List<Wallet> wallets = walletRepository.findByOwnerEmailAndIsDeletedFalse(currentUserEmail);
 
+        // Clean up duplicates (caused by previous race conditions)
+        java.util.Set<String> seenNames = new java.util.HashSet<>();
+        java.util.Iterator<Wallet> iterator = wallets.iterator();
+        while (iterator.hasNext()) {
+            Wallet w = iterator.next();
+            if (seenNames.contains(w.getName())) {
+                w.setIsDeleted(true);
+                walletRepository.save(w);
+                iterator.remove();
+            } else {
+                seenNames.add(w.getName());
+            }
+        }
+
         // Auto-generate a default "Cash" wallet if none exist
         if (wallets.isEmpty()) {
             Wallet defaultWallet = new Wallet();
@@ -58,7 +72,7 @@ public class WalletService {
     public WalletResponse createWallet(WalletRequest request) {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        if (walletRepository.findByOwnerEmailAndNameAndIsDeletedFalse(currentUserEmail, request.getName()).isPresent()) {
+        if (walletRepository.findFirstByOwnerEmailAndNameAndIsDeletedFalse(currentUserEmail, request.getName()).isPresent()) {
             throw new AppException(ErrorCode.WALLET_NAME_EXISTED);
         }
 
@@ -80,7 +94,7 @@ public class WalletService {
         Wallet wallet = walletRepository.findByIdAndOwnerEmailAndIsDeletedFalse(id, currentUserEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
 
-        Wallet existing = walletRepository.findByOwnerEmailAndNameAndIsDeletedFalse(currentUserEmail, request.getName()).orElse(null);
+        Wallet existing = walletRepository.findFirstByOwnerEmailAndNameAndIsDeletedFalse(currentUserEmail, request.getName()).orElse(null);
         if (existing != null && !existing.getId().equals(id)) {
             throw new AppException(ErrorCode.WALLET_NAME_EXISTED);
         }

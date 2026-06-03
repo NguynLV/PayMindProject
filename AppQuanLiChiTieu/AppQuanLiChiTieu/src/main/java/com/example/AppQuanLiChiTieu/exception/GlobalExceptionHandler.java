@@ -22,6 +22,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
     }
 
+    @ExceptionHandler(value = org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    ResponseEntity<ApiResponse> handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException exception) {
+        log.warn("Static resource not found: {}", exception.getMessage());
+        return ResponseEntity.status(404).body(ApiResponse.builder().code(404).message("Resource not found").build());
+    }
+
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
