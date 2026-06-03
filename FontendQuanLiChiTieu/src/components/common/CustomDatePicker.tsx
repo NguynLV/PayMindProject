@@ -98,13 +98,14 @@ interface CustomDatePickerProps {
     mode?: 'single' | 'range';
     onSelectRange?: (start: Date, end: Date) => void;
     initialEndDate?: Date;
+    maxDate?: Date;
 }
 
 const MONTHS_LABELS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 
 export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     visible, onClose, onSelect, initialDate = new Date(), title = 'Chọn ngày',
-    mode = 'single', onSelectRange, initialEndDate
+    mode = 'single', onSelectRange, initialEndDate, maxDate
 }) => {
     const [activeTab, setActiveTab] = useState<'start' | 'end'>('start');
     const [startDate, setStartDate] = useState(new Date(initialDate));
@@ -158,9 +159,14 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     };
 
     const isInvalidRange = mode === 'range' && startDate > endDate;
+    
+    const maxDateLimit = maxDate ? new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate(), 23, 59, 59) : null;
+    const isExceedMaxDate = maxDateLimit ? (mode === 'range' ? (startDate > maxDateLimit || endDate > maxDateLimit) : startDate > maxDateLimit) : false;
+    
+    const isInvalid = isInvalidRange || isExceedMaxDate;
 
     const handleApply = () => {
-        if (isInvalidRange) return;
+        if (isInvalid) return;
         if (mode === 'single' && onSelect) {
             onSelect(startDate);
         } else if (mode === 'range' && onSelectRange) {
@@ -252,17 +258,18 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                                 onValueChange={(val) => updateDate('year', val)}
                             />
                         </View>
-                        <TouchableOpacity style={styles.doneInsideBtn}>
-                            <Text style={styles.doneInsideBtnText}>Xong</Text>
-                        </TouchableOpacity>
                     </View>
+
+                    {isExceedMaxDate && (
+                        <Text style={[styles.errorText, { marginBottom: 10 }]}>Không thể chọn ngày trong tương lai</Text>
+                    )}
 
                     {/* Footer */}
                     <View style={styles.footer}>
                         <TouchableOpacity
-                            style={[styles.applyBtn, isInvalidRange && styles.applyBtnDisabled]}
+                            style={[styles.applyBtn, isInvalid && styles.applyBtnDisabled]}
                             onPress={handleApply}
-                            disabled={isInvalidRange}
+                            disabled={isInvalid}
                         >
                             <Text style={styles.applyBtnText}>Áp dụng</Text>
                         </TouchableOpacity>

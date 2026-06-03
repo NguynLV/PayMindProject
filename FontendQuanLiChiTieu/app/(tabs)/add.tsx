@@ -18,6 +18,7 @@ import UserService, { UserProfile } from '../../src/services/user.service';
 import { AiService } from '../../src/services/ai.service';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { AiLimitService } from '../../src/utils/aiLimit';
+import diaryService from '../../src/services/diary.service';
 
 const { width, height } = Dimensions.get('window');
 type TransactionType = 'EXPENSE' | 'INCOME';
@@ -276,6 +277,13 @@ export default function AddTransactionScreen() {
             toast.error('Số tiền không hợp lệ', 'Vui lòng nhập số tiền hợp lệ.');
             return;
         }
+        
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (date > today) {
+            toast.error('Ngày không hợp lệ', 'Không thể chọn ngày ở tương lai.');
+            return;
+        }
         if (!categoryId) {
             toast.error('Chưa chọn danh mục', 'Vui lòng chọn danh mục cho giao dịch.');
             return;
@@ -340,7 +348,24 @@ export default function AddTransactionScreen() {
                 imageUrl: finalImageUrl,
                 mood: mood || undefined
             };
-            await TransactionService.createTransaction(req);
+            const createdTx = await TransactionService.createTransaction(req);
+
+            // Auto sync to Diary if an image is attached
+            if (imageUri) {
+                try {
+                    const moodLabel = mood ? mood : 'neutral';
+                    const fullNote = description ? `[${moodLabel}] ${description}` : `[${moodLabel}] Thêm từ Thu Chi`;
+                    await diaryService.create({
+                        imageUri: imageUri,
+                        note: fullNote,
+                        entryDate: date.toISOString().split('T')[0],
+                        transactionId: createdTx.id
+                    });
+                } catch (diaryErr) {
+                    console.log("Failed to auto-create diary entry", diaryErr);
+                }
+            }
+
             toast.success('Lưu thành công', 'Giao dịch của bạn đã được ghi lại thành công.');
             setTimeout(() => {
                 setExpression('0');
@@ -409,8 +434,7 @@ export default function AddTransactionScreen() {
                 }
                 result = await ImagePicker.launchCameraAsync({
                     mediaTypes: ['images'],
-                    quality: 0.85,
-                    base64: true
+                    quality: 0.5,
                 });
             } else {
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -420,8 +444,7 @@ export default function AddTransactionScreen() {
                 }
                 result = await ImagePicker.launchImageLibraryAsync({
                     mediaTypes: ['images'],
-                    quality: 0.85,
-                    base64: true
+                    quality: 0.8,
                 });
             }
 
@@ -447,8 +470,7 @@ export default function AddTransactionScreen() {
         }
         try {
             const photo = await cameraRef.current?.takePictureAsync({
-                quality: 0.85,
-                base64: true
+                quality: 0.5,
             });
             if (photo && photo.uri) {
                 setImageUri(photo.uri);
@@ -888,7 +910,8 @@ export default function AddTransactionScreen() {
                 <CustomDatePicker
                     visible={showDatePicker}
                     onClose={() => setShowDatePicker(false)}
-                    initialDate={date}
+                    initialDate={new Date(date)}
+                    maxDate={new Date()}
                     onSelect={(selectedDate) => {
                         setDate(selectedDate);
                     }}

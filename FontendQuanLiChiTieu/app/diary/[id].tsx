@@ -88,10 +88,10 @@ export default function DiaryDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Image */}
         {entry.imageUrl && (
-          <Image source={{ uri: entry.imageUrl }} style={styles.image} resizeMode="cover" />
+          <Image source={{ uri: getFullImageUrl(entry.imageUrl) }} style={styles.image} resizeMode="cover" />
         )}
 
         <View style={styles.contentCard}>

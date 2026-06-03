@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Rect, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 import UserService, { UserProfile } from '@/services/user.service';
-import { getToken, removeToken } from '@/services/api';
+import { getToken, removeToken, getFullImageUrl } from '@/services/api';
 import { TransactionService, TransactionResponse } from '@/services/transaction.service';
 import { WalletService, WalletResponse } from '@/services/wallet.service';
 import { NotificationService } from '@/services/notification.service';
@@ -40,7 +40,7 @@ function Avatar({ firstName, lastName, avatarUrl }: { firstName: string; lastNam
   return (
     <View style={styles.avatar}>
       {avatarUrl
-        ? <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+        ? <Image source={{ uri: getFullImageUrl(avatarUrl) }} style={styles.avatarImg} />
         : initials
           ? <Text style={styles.avatarText}>{initials}</Text>
           : <Ionicons name="person" size={18} color="#6366F1" />
@@ -383,7 +383,9 @@ export default function HomeScreen() {
       console.warn('Fetch data error:', error);
       if (error.response?.status === 401) {
         await removeToken();
-        router.replace('/auth/login');
+        setTimeout(() => {
+          router.replace('/auth/login');
+        }, 100);
       }
     } finally {
       setLoading(false);

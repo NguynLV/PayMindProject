@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import UserService, { UserProfile } from '@/services/user.service';
-import { getToken } from '@/services/api';
+import { getToken, getFullImageUrl } from '@/services/api';
 
 const GENDER_LABEL: Record<string, string> = {
     NAM: 'Nam', NU: 'Nữ', KHAC: 'Khác',
@@ -20,7 +20,7 @@ function Avatar({ firstName, lastName, avatarUrl, onEdit }: { firstName: string;
         <TouchableOpacity style={styles.avatarContainer} onPress={onEdit} activeOpacity={0.9}>
             <View style={styles.avatar}>
                 {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+                    <Image source={{ uri: getFullImageUrl(avatarUrl) }} style={styles.avatarImg} />
                 ) : initials ? (
                     <Text style={styles.avatarText}>{initials}</Text>
                 ) : (

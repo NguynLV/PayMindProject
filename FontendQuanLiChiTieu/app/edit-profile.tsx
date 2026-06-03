@@ -13,6 +13,7 @@ import UserService, { UserProfile } from '@/services/user.service';
 import { Gender } from '@/constants/enums';
 import { formatDate } from '@/utils/date';
 import { useToast } from '@/components/common/Toast';
+import { getFullImageUrl } from '@/services/api';
 
 export default function EditProfileScreen() {
     const router = useRouter();
@@ -81,7 +82,7 @@ export default function EditProfileScreen() {
         }
     };
 
-    const avatarUri = avatar?.uri ?? initial.avatarUrl ?? null;
+    const avatarUri = avatar?.uri ?? (initial.avatarUrl ? getFullImageUrl(initial.avatarUrl) : null);
 
     return (
         <SafeAreaView style={styles.mainContainer}>

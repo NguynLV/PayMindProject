@@ -4,6 +4,7 @@ import {
   ScrollView, Modal, ActivityIndicator, Dimensions, StatusBar,
   FlatList, TextInput, Platform,
 } from 'react-native';
+import { getFullImageUrl } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -111,7 +112,7 @@ function FeedCard({
       <View style={cf.header}>
         <View style={cf.userInfo}>
           {user?.avatarUrl ? (
-            <Image source={{ uri: user.avatarUrl }} style={cf.avatar} />
+            <Image source={{ uri: getFullImageUrl(user.avatarUrl) }} style={cf.avatar} />
           ) : (
             <View style={cf.avatarPlaceholder}>
               <Text style={cf.avatarText}>
@@ -125,7 +126,9 @@ function FeedCard({
       </View>
 
       <TouchableOpacity activeOpacity={0.9} onPress={onSelect} style={cf.imageWrapper}>
-        <Image source={{ uri: entry.imageUrl || 'https://via.placeholder.com/600' }} style={cf.image} resizeMode="cover" />
+        {entry.imageUrl ? (
+          <Image source={{ uri: getFullImageUrl(entry.imageUrl) }} style={cf.image} resizeMode="cover" />
+        ) : null}
 
         <View style={cf.topOverlay}>
           {entry.transactionType && (
@@ -176,7 +179,7 @@ function EntryCard({ entry, onDelete }: { entry: DiaryEntry; onDelete: () => voi
   return (
     <View style={ec.card}>
       {entry.imageUrl && (
-        <Image source={{ uri: entry.imageUrl || undefined }} style={ec.img} resizeMode="cover" />
+        <Image source={{ uri: getFullImageUrl(entry.imageUrl) }} style={ec.img} resizeMode="cover" />
       )}
       {entry.note && (
         <View style={ec.noteBubble}>
@@ -288,7 +291,7 @@ function CaptureTab({
   const handleCapture = async () => {
     if (!permission?.granted) { await requestPermission(); return; }
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.85 });
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.5 });
       if (photo?.uri) setCapturedUri(photo.uri);
     } catch { toast.error('Lỗi camera!', 'Không thể chụp ảnh lúc này.'); }
   };
@@ -524,7 +527,7 @@ function CaptureTab({
         <View style={ct.controls}>
           <TouchableOpacity onPress={recentEntry ? () => onSelectEntry(recentEntry) : handlePickGallery} style={ct.sideBtn}>
             {recentEntry?.imageUrl ? (
-              <Image source={{ uri: recentEntry.imageUrl }} style={ct.recentThumb} />
+              <Image source={{ uri: getFullImageUrl(recentEntry.imageUrl) }} style={ct.recentThumb} />
             ) : (
               <View style={ct.sideBtnBox}><Ionicons name="image-outline" size={26} color="#fff" /></View>
             )}
@@ -792,17 +795,17 @@ function ReviewTab({ entries, loading, entriesMap, year, month, prevMonth, nextM
                             {count > 1 ? (
                               <>
                                 <Image
-                                  source={{ uri: (dayEntries[1]?.imageUrl || repEntry.imageUrl) }}
+                                  source={{ uri: getFullImageUrl(dayEntries[1]?.imageUrl || repEntry.imageUrl) }}
                                   style={rv.cellStackImgBehind}
                                   resizeMode="cover"
                                 />
-                                <Image source={{ uri: repEntry.imageUrl }} style={rv.cellCircleImg} resizeMode="cover" />
+                                <Image source={{ uri: getFullImageUrl(repEntry.imageUrl) }} style={rv.cellCircleImg} resizeMode="cover" />
                                 <View style={rv.cellImgCountBadge}>
                                   <Text style={rv.cellImgCountText}>+{count - 1}</Text>
                                 </View>
                               </>
                             ) : (
-                              <Image source={{ uri: repEntry.imageUrl }} style={rv.cellCircleImg} resizeMode="cover" />
+                              <Image source={{ uri: getFullImageUrl(repEntry.imageUrl) }} style={rv.cellCircleImg} resizeMode="cover" />
                             )}
                           </TouchableOpacity>
                         ) : (
@@ -884,7 +887,7 @@ function ReviewTab({ entries, loading, entriesMap, year, month, prevMonth, nextM
                   <View style={rv.swipeCardHeader}>
                     <View style={rv.swipeUserInfo}>
                       {user?.avatarUrl ? (
-                        <Image source={{ uri: user.avatarUrl }} style={rv.swipeAvatar} />
+                        <Image source={{ uri: getFullImageUrl(user.avatarUrl) }} style={rv.swipeAvatar} />
                       ) : (
                         <View style={rv.swipeAvatarPlaceholder}>
                           <Text style={rv.swipeAvatarText}>
@@ -907,7 +910,9 @@ function ReviewTab({ entries, loading, entriesMap, year, month, prevMonth, nextM
 
                   {/* Photo Frame Container */}
                   <View style={rv.swipePhotoCard}>
-                    <Image source={{ uri: item.imageUrl || 'https://via.placeholder.com/600' }} style={rv.swipeImg} resizeMode="cover" />
+                    {item.imageUrl ? (
+                      <Image source={{ uri: getFullImageUrl(item.imageUrl) }} style={rv.swipeImg} resizeMode="cover" />
+                    ) : null}
 
                     {/* Top Pill Tags Overlays */}
                     <View style={rv.swipeTopOverlay}>
@@ -1006,7 +1011,7 @@ function ReviewTab({ entries, loading, entriesMap, year, month, prevMonth, nextM
                     <View style={cf.header}>
                       <View style={cf.userInfo}>
                         {user?.avatarUrl ? (
-                          <Image source={{ uri: user.avatarUrl }} style={cf.avatar} />
+                          <Image source={{ uri: getFullImageUrl(user.avatarUrl) }} style={cf.avatar} />
                         ) : (
                           <View style={cf.avatarPlaceholder}>
                             <Text style={cf.avatarText}>
@@ -1022,7 +1027,7 @@ function ReviewTab({ entries, loading, entriesMap, year, month, prevMonth, nextM
                     {/* Image or Mood Placeholder */}
                     <TouchableOpacity activeOpacity={0.9} onPress={() => setSelectedEntry(item)} style={cf.imageWrapperSwiper}>
                       {item.imageUrl ? (
-                        <Image source={{ uri: item.imageUrl }} style={cf.image} resizeMode="cover" />
+                        <Image source={{ uri: getFullImageUrl(item.imageUrl) }} style={cf.image} resizeMode="cover" />
                       ) : (
                         <View style={cf.moodPlaceholderCard}>
                           <Text style={cf.moodPlaceholderEmoji}>{moodEmoji || '🗿'}</Text>
@@ -1482,7 +1487,7 @@ export default function DiaryScreen() {
           <Text style={ms.headerTitle}>Kỷ niệm</Text>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl || undefined }} style={ms.avatarImg} />
+              <Image source={{ uri: getFullImageUrl(user.avatarUrl) }} style={ms.avatarImg} />
             ) : (
               <View style={ms.avatarPlaceholder}>
                 <Text style={ms.avatarText}>
@@ -1575,7 +1580,9 @@ export default function DiaryScreen() {
                   return (
                     <View style={{ width: width, alignItems: 'center' }}>
                       <View style={rv.detailPhotoCard}>
-                        <Image source={{ uri: item.imageUrl || 'https://via.placeholder.com/600' }} style={rv.detailImg} resizeMode="cover" />
+                        {item.imageUrl ? (
+                          <Image source={{ uri: getFullImageUrl(item.imageUrl) }} style={rv.detailImg} resizeMode="cover" />
+                        ) : null}
 
                         <View style={rv.detailTopOverlay}>
                           <View style={rv.detailPillGreen}>

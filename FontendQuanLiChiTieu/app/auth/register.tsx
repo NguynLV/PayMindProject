@@ -285,6 +285,9 @@ export default function RegisterScreen() {
                                                 }
                                             } catch (error) {
                                                 console.warn('Lỗi kiểm tra email:', error);
+                                                setLoading(false);
+                                                toast.error('Lỗi xác thực', 'Không thể kiểm tra email lúc này. Vui lòng thử lại sau.');
+                                                return;
                                             }
                                             setLoading(false);
                                             setCurrentStep(2);

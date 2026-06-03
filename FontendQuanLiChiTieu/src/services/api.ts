@@ -24,6 +24,14 @@ export const removeToken = async () => {
     await AsyncStorage.removeItem(TOKEN_KEY);
 };
 
+export const getFullImageUrl = (url?: string | null) => {
+    if (!url) return undefined;
+    if (url.startsWith('http')) return url;
+    if (url.startsWith('uploads/')) return `${BASE_URL}/${url}`;
+    if (url.startsWith('/uploads/')) return `${BASE_URL}${url}`;
+    return `${BASE_URL}/uploads/${url}`;
+};
+
 const api = axios.create({
     baseURL: BASE_URL,
     headers: {

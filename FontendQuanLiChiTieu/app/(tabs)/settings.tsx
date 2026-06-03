@@ -6,7 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserService, { UserProfile } from '../../src/services/user.service';
-import api, { removeToken, getToken } from '../../src/services/api';
+import api, { removeToken, getToken, getFullImageUrl } from '../../src/services/api';
 import { WalletService, WalletResponse } from '../../src/services/wallet.service';
 import { TransactionService, TransactionResponse } from '../../src/services/transaction.service';
 import { BudgetService, BudgetResponse } from '../../src/services/budget.service';
@@ -25,7 +25,7 @@ function Avatar({ firstName, lastName, avatarUrl, onEdit, isPremium }: { firstNa
     return (
         <TouchableOpacity style={styles.avatarContainer} onPress={onEdit} activeOpacity={0.9}>
             {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={[styles.avatarImg, isPremium && styles.avatarImgPremium]} />
+                <Image source={{ uri: getFullImageUrl(avatarUrl) }} style={[styles.avatarImg, isPremium && styles.avatarImgPremium]} />
             ) : (
                 <View style={[styles.avatarImg, isPremium && styles.avatarImgPremium, { backgroundColor: isPremium ? '#EEF2FF' : '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}>
                     {initials ? (
