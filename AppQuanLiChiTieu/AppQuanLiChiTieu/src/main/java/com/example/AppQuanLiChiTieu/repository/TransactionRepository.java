@@ -12,7 +12,10 @@ import java.util.Optional;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Integer> {
     Optional<Transaction> findByIdAndOwnerEmailAndIsDeletedFalse(Integer id, String ownerEmail);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"category", "wallet"})
     List<Transaction> findByOwnerEmailAndIsDeletedFalseOrderByTransactionDateDesc(String ownerEmail);
+
     List<Transaction> findByTypeAndOwnerEmailAndIsDeletedFalseAndTransactionDateBetween(String type, String ownerEmail, Instant startDate, Instant endDate);
     List<Transaction> findByCategoryAndOwnerEmailAndIsDeletedFalseAndTransactionDateBetweenOrderByTransactionDateDesc(
             Category category, String ownerEmail, Instant startDate, Instant endDate);

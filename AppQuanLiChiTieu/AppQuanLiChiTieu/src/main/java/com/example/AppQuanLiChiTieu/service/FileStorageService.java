@@ -35,7 +35,6 @@ public class FileStorageService {
         Path filePath = Paths.get(uploadDirStr, fileName);
         Files.copy(file.getInputStream(), filePath);
 
-        String contextPathUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
-        return contextPathUrl + "/uploads/" + fileName;
+        return fileName;
     }
 }
