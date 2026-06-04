@@ -36,7 +36,7 @@ function Avatar({ firstName, lastName, avatarUrl, onEdit, isPremium }: { firstNa
                 </View>
             )}
             <View style={[styles.editAvatarBtn, isPremium && styles.editAvatarBtnPremium]}>
-                <Ionicons name="camera" size={12} color="#FFFFFF" />
+                <Ionicons name="pencil" size={12} color="#FFFFFF" />
             </View>
         </TouchableOpacity>
     );
@@ -351,7 +351,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
     backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
     headerTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937' },

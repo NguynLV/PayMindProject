@@ -3,6 +3,7 @@ import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
     StatusBar, ActivityIndicator, Image, Platform, SafeAreaView
 } from 'react-native';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -88,7 +89,7 @@ export default function ProfileScreen() {
         <SafeAreaView style={styles.mainContainer}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-            <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? 12 : 8 }]}>
+            <View style={[styles.header, { paddingTop: 12 }]}>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
                     <Ionicons name="chevron-back" size={24} color="#1F2937" />
                 </TouchableOpacity>
@@ -133,7 +134,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+    mainContainer: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
     loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
 
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },

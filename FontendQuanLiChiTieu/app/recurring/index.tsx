@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Platform, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Platform, ActivityIndicator, Switch, Animated } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -162,6 +163,25 @@ export default function RecurringScreen() {
         return { color: '#7C3AED', bg: '#F5F3FF', icon: 'calendar', label: 'Định kỳ' };
     };
 
+    const renderRightActions = (dragX: Animated.AnimatedInterpolation<number>, id: number) => {
+        const trans = dragX.interpolate({
+            inputRange: [-80, 0],
+            outputRange: [1, 0],
+            extrapolate: 'clamp',
+        });
+        return (
+            <TouchableOpacity 
+                style={{ backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 70, borderTopRightRadius: 20, borderBottomRightRadius: 20, marginBottom: 14 }} 
+                onPress={() => handleDelete(id)} 
+                activeOpacity={0.8}
+            >
+                <Animated.View style={[{ transform: [{ scale: trans }] }]}>
+                    <Ionicons name="trash-outline" size={24} color="#FFF" />
+                </Animated.View>
+            </TouchableOpacity>
+        );
+    };
+
     const renderRecurringCard = ({ item }: { item: RecurringTransactionResponse }) => {
         const preset = getBrandPreset(item.description || '');
         const cycleText = item.cycle === 'DAILY' ? 'Hàng ngày' :
@@ -169,7 +189,11 @@ export default function RecurringScreen() {
                           item.cycle === 'MONTHLY' ? 'Hàng tháng' : 'Hàng năm';
 
         return (
-            <View style={styles.card}>
+            <Swipeable
+                renderRightActions={(_, dragX) => renderRightActions(dragX, item.id)}
+                containerStyle={{ marginBottom: 14 }}
+            >
+            <View style={[styles.card, { marginBottom: 0 }]}>
                 <View style={styles.cardHeader}>
                     <View style={[styles.iconContainer, { backgroundColor: preset.bg }]}>
                         <Ionicons name={preset.icon as any} size={24} color={preset.color} />
@@ -240,15 +264,10 @@ export default function RecurringScreen() {
                         >
                             <Ionicons name="create-outline" size={14} color="#4B5563" />
                         </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.actionBtn, styles.deleteBtn]}
-                            onPress={() => handleDelete(item.id)}
-                        >
-                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
+            </Swipeable>
         );
     };
 

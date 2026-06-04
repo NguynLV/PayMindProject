@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, SectionList, ActivityIndicator, RefreshControl, TouchableOpacity, TextInput, ScrollView, Modal, Platform, Animated, useWindowDimensions, StatusBar, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, SectionList, ActivityIndicator, RefreshControl, TouchableOpacity, TextInput, ScrollView, Modal, Platform, Animated, useWindowDimensions, StatusBar, Dimensions } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { TransactionService, TransactionResponse } from '@/services/transaction.service';
 import { WalletService, WalletResponse } from '@/services/wallet.service';
 import { CategoryService, CategoryResponse } from '@/services/category.service';
@@ -278,7 +278,7 @@ export default function TransactionsScreen() {
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? 12 : 10 }]}>
                 <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()} activeOpacity={0.7}>
                     <Ionicons name="chevron-back" size={24} color="#111827" />
                 </TouchableOpacity>

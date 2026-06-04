@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Platform, ActivityIndicator, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Platform, ActivityIndicator, Modal, ScrollView, Animated } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, Stack } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -139,13 +140,36 @@ export default function DebtScreen() {
         toast.success('Đã sao chép!', 'Đã sao chép tin nhắn nhắc nợ thành công.');
     };
 
+    const renderRightActions = (dragX: Animated.AnimatedInterpolation<number>, id: number) => {
+        const trans = dragX.interpolate({
+            inputRange: [-80, 0],
+            outputRange: [1, 0],
+            extrapolate: 'clamp',
+        });
+        return (
+            <TouchableOpacity 
+                style={{ backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 70, borderTopRightRadius: 16, borderBottomRightRadius: 16, marginBottom: 14 }} 
+                onPress={() => handleDeleteDebt(id)} 
+                activeOpacity={0.8}
+            >
+                <Animated.View style={[{ transform: [{ scale: trans }] }]}>
+                    <Ionicons name="trash-outline" size={24} color="#FFF" />
+                </Animated.View>
+            </TouchableOpacity>
+        );
+    };
+
     const renderDebtCard = ({ item }: { item: DebtResponse }) => {
         const badge = getStatusBadge(item.status);
         const icon = getItemIcon(item.itemType);
         const displayName = getItemName(item.itemType, item.itemDescription);
 
         return (
-            <View style={styles.card}>
+            <Swipeable
+                renderRightActions={(_, dragX) => renderRightActions(dragX, item.id)}
+                containerStyle={{ marginBottom: 14 }}
+            >
+                <View style={[styles.card, { marginBottom: 0 }]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.iconContainer}>
                         <Text style={styles.avatarText}>{icon}</Text>
@@ -226,14 +250,9 @@ export default function DebtScreen() {
                         <Text style={styles.editActionText}>Sửa</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={[styles.actionButton, styles.deleteAction]}
-                        onPress={() => handleDeleteDebt(item.id)}
-                    >
-                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                    </TouchableOpacity>
                 </View>
             </View>
+            </Swipeable>
         );
     };
 

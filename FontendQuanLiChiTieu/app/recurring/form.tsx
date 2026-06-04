@@ -197,7 +197,7 @@ export default function RecurringFormScreen() {
                 <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     
                     {/* Brand Presets List */}
-                    {!isEdit && (
+                    {!isEdit && type === 'EXPENSE' && (
                         <>
                             <Text style={styles.sectionLabel}>Dịch vụ đăng ký phổ biến</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsScroll}>

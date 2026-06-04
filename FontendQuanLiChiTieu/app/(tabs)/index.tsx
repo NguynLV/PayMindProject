@@ -3,11 +3,12 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Dimensions, ActivityIndicator,
   RefreshControl, Alert, Modal, TouchableWithoutFeedback,
-  Image, Platform, FlatList, NativeSyntheticEvent, NativeScrollEvent
+  Image, Platform, FlatList, NativeSyntheticEvent, NativeScrollEvent, SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Rect, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
@@ -17,6 +18,8 @@ import { TransactionService, TransactionResponse } from '@/services/transaction.
 import { WalletService, WalletResponse } from '@/services/wallet.service';
 import { NotificationService } from '@/services/notification.service';
 import { BudgetService, BudgetResponse } from '@/services/budget.service';
+import { RecurringService, RecurringTransactionResponse } from '@/services/recurring.service';
+import { DebtService, DebtResponse } from '@/services/debt.service';
 import { getRelativeDate, formatTime } from '@/utils/date';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -318,9 +321,12 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [budgets, setBudgets] = useState<BudgetResponse[]>([]);
+  const [recurrings, setRecurrings] = useState<RecurringTransactionResponse[]>([]);
+  const [debts, setDebts] = useState<DebtResponse[]>([]);
   const [activeBudgetIdx, setActiveBudgetIdx] = useState(0);
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(false);
+  const [showDueAlertModal, setShowDueAlertModal] = useState(false);
   const isFirstLoad = useRef(true);
 
   const fetchData = useCallback(async (isRefresh = false) => {
@@ -354,18 +360,22 @@ export default function HomeScreen() {
     }
 
     try {
-      const [u, txRes, wRes, unread, budgetsRes] = await Promise.all([
+      const [u, txRes, wRes, unread, budgetsRes, recurringRes, debtRes] = await Promise.all([
         UserService.getMyProfile(),
         TransactionService.getMyTransactions(),
         WalletService.getMyWallets(),
         NotificationService.getUnreadCount(),
-        BudgetService.getMyBudgets()
+        BudgetService.getMyBudgets(),
+        RecurringService.getMyRecurringTransactions().catch(() => []),
+        DebtService.getMyDebts().catch(() => [])
       ]);
       setUser(u);
       setTransactions(txRes);
       setWallets(wRes);
       setUnreadCount(unread);
       setBudgets(budgetsRes);
+      setRecurrings(recurringRes || []);
+      setDebts(debtRes || []);
 
       // Save cache silently
       try {
@@ -453,6 +463,32 @@ export default function HomeScreen() {
     return days.map((day, i) => ({ label: day, value: mockValues[i] }));
   };
 
+  // Compute due items for banner
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueRecurrings = recurrings.filter(r => {
+    if (!r.isActive || !r.nextRunDate) return false;
+    const nextRun = new Date(r.nextRunDate);
+    nextRun.setHours(0, 0, 0, 0);
+    return nextRun.getTime() <= today.getTime();
+  });
+
+  const dueDebts = debts.filter(d => {
+    if (d.status !== 'UNPAID' || !d.dueDate) return false;
+    const dueDate = new Date(d.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate.getTime() <= today.getTime();
+  });
+
+  const totalDueItems = dueRecurrings.length + dueDebts.length;
+
+  useEffect(() => {
+    if (!loading && totalDueItems > 0) {
+      setShowDueAlertModal(true);
+    }
+  }, [totalDueItems, loading]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -488,6 +524,39 @@ export default function HomeScreen() {
         onSelect={(idx) => setActiveBudgetIdx(idx)}
         onManage={() => { setSelectorVisible(false); router.push('/budget'); }}
       />
+
+      <Modal transparent visible={showDueAlertModal} animationType="fade">
+        <View style={styles.modalOverlayAlert}>
+          <View style={styles.alertModalBox}>
+            <View style={styles.alertModalIconBg}>
+              <Ionicons name="warning" size={36} color="#F59E0B" />
+            </View>
+            <Text style={styles.alertModalTitle}>Có việc cần xử lý ngay!</Text>
+            <Text style={styles.alertModalDesc}>
+              Bạn có {dueRecurrings.length > 0 ? `${dueRecurrings.length} giao dịch định kỳ` : ''} 
+              {dueRecurrings.length > 0 && dueDebts.length > 0 ? ' và ' : ''} 
+              {dueDebts.length > 0 ? `${dueDebts.length} sổ nợ` : ''} 
+              {' '}đến hạn hoặc quá hạn thanh toán. Bạn có muốn đi đến trang tương ứng để kiểm tra ngay không?
+            </Text>
+            
+            <View style={styles.alertModalActions}>
+              <TouchableOpacity style={styles.alertModalCancel} onPress={() => setShowDueAlertModal(false)}>
+                <Text style={styles.alertModalCancelText}>Để sau</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.alertModalGo} 
+                onPress={() => {
+                  setShowDueAlertModal(false);
+                  if (dueRecurrings.length > 0) router.push('/recurring' as any);
+                  else router.push('/debt' as any);
+                }}
+              >
+                <Text style={styles.alertModalGoText}>Đi tới ngay</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ScrollView
         style={styles.scroll}
@@ -762,7 +831,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
   loadingText: { marginTop: 12, fontSize: 14, color: '#6B7280', fontWeight: '500' },
-  safe: { flex: 1, backgroundColor: '#FAFAFA' },
+  safe: { flex: 1, backgroundColor: '#FAFAFA', paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight : 0 },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: Platform.OS === 'ios' ? 88 : 64 },
   ambientGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 200, zIndex: 0 },
@@ -819,23 +888,22 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  notifDot: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#EF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#FAFAFA',
-    paddingHorizontal: 2
-  },
-  notifCount: { color: '#FFFFFF', fontSize: 8, fontWeight: '800' },
+  notifDot: { position: 'absolute', top: -2, right: -2, backgroundColor: '#EF4444', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FAFAFA', paddingHorizontal: 4 },
+  notifCount: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
 
-  // ── WALLET BALANCE CARD ──
+  // ── ALERT POPUP MODAL ──
+  modalOverlayAlert: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  alertModalBox: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+  alertModalIconBg: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  alertModalTitle: { fontSize: 18, fontWeight: '800', color: '#B45309', marginBottom: 12, textAlign: 'center' },
+  alertModalDesc: { fontSize: 14, color: '#4B5563', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  alertModalActions: { flexDirection: 'row', gap: 12, width: '100%' },
+  alertModalCancel: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center' },
+  alertModalCancelText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+  alertModalGo: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F59E0B', alignItems: 'center' },
+  alertModalGoText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+
+  // ── WALLET BALANCE ──CARD ──
   balanceCardWrapper: { paddingHorizontal: 20, marginBottom: 24 },
   balanceCard: {
     backgroundColor: '#FFFFFF',

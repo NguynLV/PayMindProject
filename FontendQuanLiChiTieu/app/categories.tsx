@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Platform, StatusBar, Animated } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -61,30 +62,42 @@ export default function CategoriesScreen() {
         );
     };
 
-    const renderItem = ({ item }: { item: CategoryResponse }) => (
-        <View style={styles.catRow}>
-            <View style={[styles.catIcon, { backgroundColor: item.color ? item.color + '15' : '#F8FAFC' }]}>
-                <Ionicons name={item.icon as any} size={22} color={item.color || '#6366F1'} />
-            </View>
-            <Text style={styles.catName}>{item.name}</Text>
+    const renderRightActions = (dragX: Animated.AnimatedInterpolation<number>, id: number, name: string) => {
+        const trans = dragX.interpolate({
+            inputRange: [-80, 0],
+            outputRange: [1, 0],
+            extrapolate: 'clamp',
+        });
+        return (
+            <TouchableOpacity 
+                style={{ backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 70, borderTopRightRadius: 16, borderBottomRightRadius: 16 }} 
+                onPress={() => handleDelete(id, name)} 
+                activeOpacity={0.8}
+            >
+                <Animated.View style={[{ transform: [{ scale: trans }] }]}>
+                    <Ionicons name="trash-outline" size={24} color="#FFF" />
+                </Animated.View>
+            </TouchableOpacity>
+        );
+    };
 
-            <View style={styles.actions}>
-                <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => router.push({ pathname: '/category-form', params: { id: item.id, type: activeTab } })}
-                    activeOpacity={0.6}
-                >
-                    <Ionicons name="create-outline" size={18} color="#6366F1" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#FEF2F2' }]}
-                    onPress={() => handleDelete(item.id, item.name)}
-                    activeOpacity={0.6}
-                >
-                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                </TouchableOpacity>
-            </View>
-        </View>
+    const renderItem = ({ item }: { item: CategoryResponse }) => (
+        <Swipeable
+            renderRightActions={(_, dragX) => renderRightActions(dragX, item.id, item.name)}
+            containerStyle={{ marginBottom: 12 }}
+        >
+            <TouchableOpacity 
+                style={[styles.catRow, { marginBottom: 0 }]}
+                onPress={() => router.push({ pathname: '/category-form', params: { id: item.id, type: activeTab } })}
+                activeOpacity={0.7}
+            >
+                <View style={[styles.catIcon, { backgroundColor: item.color ? item.color + '15' : '#F8FAFC' }]}>
+                    <Ionicons name={item.icon as any} size={22} color={item.color || '#6366F1'} />
+                </View>
+                <Text style={styles.catName}>{item.name}</Text>
+                <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+            </TouchableOpacity>
+        </Swipeable>
     );
 
     return (
