@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AuthService from '@/services/auth.service';
 
 import { saveToken } from '@/services/api';
@@ -34,6 +35,8 @@ export default function RegisterScreen() {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
+    const [birthday, setBirthday] = useState<Date>(new Date(new Date().setFullYear(new Date().getFullYear() - 20)));
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     const [isFirstNameFocused, setIsFirstNameFocused] = useState(false);
     const [isLastNameFocused, setIsLastNameFocused] = useState(false);
@@ -73,6 +76,7 @@ export default function RegisterScreen() {
                 email,
                 password,
                 confirmPassword,
+                birthday: `${birthday.getFullYear()}-${(birthday.getMonth() + 1).toString().padStart(2, '0')}-${birthday.getDate().toString().padStart(2, '0')}`,
             });
 
             setLoading(false);
@@ -233,6 +237,32 @@ export default function RegisterScreen() {
                                         </View>
                                     </View>
                                 </View>
+                                
+                                {/* Birthday */}
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Ngày sinh</Text>
+                                    <TouchableOpacity 
+                                        style={styles.inputContainer}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Ionicons name="calendar-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
+                                        <Text style={[styles.input, { marginTop: Platform.OS === 'ios' ? 14 : 10, color: '#1F2937' }]}>
+                                            {`${birthday.getDate().toString().padStart(2, '0')}/${(birthday.getMonth() + 1).toString().padStart(2, '0')}/${birthday.getFullYear()}`}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={birthday}
+                                            mode="date"
+                                            display="default"
+                                            onChange={(event: any, selectedDate?: Date) => {
+                                                setShowDatePicker(Platform.OS === 'ios');
+                                                if (selectedDate) setBirthday(selectedDate);
+                                            }}
+                                            maximumDate={new Date()}
+                                        />
+                                    )}
+                                </View>
                             </>
                         )}
 
@@ -297,6 +327,24 @@ export default function RegisterScreen() {
                                             toast.error('Thiếu thông tin', 'Vui lòng điền đầy đủ họ và tên.');
                                             return;
                                         }
+
+                                        const today = new Date();
+                                        let age = today.getFullYear() - birthday.getFullYear();
+                                        const m = today.getMonth() - birthday.getMonth();
+                                        if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) {
+                                            age--;
+                                        }
+
+                                        if (birthday > today) {
+                                            toast.error('Ngày sinh không hợp lệ', 'Ngày sinh không được ở tương lai.');
+                                            return;
+                                        }
+
+                                        if (age < 13) {
+                                            toast.error('Chưa đủ tuổi', 'Bạn phải từ đủ 13 tuổi trở lên để sử dụng PayMind.');
+                                            return;
+                                        }
+
                                         handleRegister();
                                     }
                                 }}

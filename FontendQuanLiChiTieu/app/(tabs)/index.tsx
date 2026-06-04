@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, StatusBar, Dimensions, ActivityIndicator,
+  StatusBar, Dimensions, ActivityIndicator,
   RefreshControl, Alert, Modal, TouchableWithoutFeedback,
   Image, Platform, FlatList, NativeSyntheticEvent, NativeScrollEvent
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Rect, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
@@ -508,7 +508,7 @@ export default function HomeScreen() {
         />
 
         {/* ── HEADER ── */}
-        <View style={[styles.header, { paddingTop: insets.top > 0 ? 8 : 16 }]}>
+        <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? 16 : 8 }]}>
           <View style={styles.headerLeft}>
             <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} avatarUrl={user?.avatarUrl} />
             <View>

@@ -28,7 +28,7 @@ function Avatar({ firstName, lastName, avatarUrl, onEdit }: { firstName: string;
                 )}
             </View>
             <View style={styles.editBadge}>
-                <Ionicons name="camera-outline" size={14} color="#FFFFFF" />
+                <Ionicons name="pencil" size={14} color="#FFFFFF" />
             </View>
         </TouchableOpacity>
     );
@@ -52,7 +52,7 @@ export default function ProfileScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [user, setUser] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!user);
 
     useFocusEffect(
         useCallback(() => {
@@ -61,13 +61,13 @@ export default function ProfileScreen() {
                     setLoading(false);
                     return;
                 }
-                setLoading(true);
+                if (!user) setLoading(true);
                 UserService.getMyProfile()
                     .then(setUser)
                     .catch(() => router.replace('/auth/login'))
                     .finally(() => setLoading(false));
             });
-        }, [])
+        }, [user])
     );
 
     if (loading) {

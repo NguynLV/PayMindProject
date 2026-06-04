@@ -16,6 +16,7 @@ export default function RecurringScreen() {
     const toast = useToast();
     const [recurrings, setRecurrings] = useState<RecurringTransactionResponse[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
 
     const loadRecurrings = async () => {
         try {
@@ -36,10 +37,10 @@ export default function RecurringScreen() {
         }, [])
     );
 
-    // Calculate total monthly leakage
-    const getMonthlyLeakage = () => {
+    // Calculate total monthly leakage/income
+    const getMonthlyTotal = () => {
         return recurrings
-            .filter(r => r.isActive && r.type === 'EXPENSE')
+            .filter(r => r.isActive && r.type === activeTab)
             .reduce((sum, r) => {
                 const amt = r.amount || 0;
                 switch (r.cycle) {
@@ -251,6 +252,8 @@ export default function RecurringScreen() {
         );
     };
 
+    const filteredRecurrings = recurrings.filter(r => r.type === activeTab);
+
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -263,12 +266,32 @@ export default function RecurringScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            {/* Cash Leak Summary */}
+            {/* Tabs */}
+            <View style={styles.tabContainer}>
+                <TouchableOpacity
+                    style={[styles.tabBtn, activeTab === 'EXPENSE' && styles.tabBtnActive]}
+                    onPress={() => setActiveTab('EXPENSE')}
+                    activeOpacity={0.8}
+                >
+                    <Text style={[styles.tabText, activeTab === 'EXPENSE' && styles.tabTextActive]}>Chi tiêu</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tabBtn, activeTab === 'INCOME' && styles.tabBtnActive]}
+                    onPress={() => setActiveTab('INCOME')}
+                    activeOpacity={0.8}
+                >
+                    <Text style={[styles.tabText, activeTab === 'INCOME' && styles.tabTextActive]}>Thu nhập</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Summary */}
             <View style={styles.summaryContainer}>
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryLabel}>Tổng chi tiêu định kỳ hàng tháng 📅</Text>
-                    <Text style={styles.summaryValue}>{formatVND(getMonthlyLeakage())}</Text>
-                    <Text style={styles.summarySubtext}>Tổng chi phí từ các dịch vụ đăng ký định kỳ đang hoạt động</Text>
+                <View style={[styles.summaryCard, activeTab === 'INCOME' && styles.summaryCardIncome]}>
+                    <Text style={styles.summaryLabel}>Tổng {activeTab === 'EXPENSE' ? 'chi tiêu' : 'thu nhập'} định kỳ hàng tháng 📅</Text>
+                    <Text style={styles.summaryValue}>{formatVND(getMonthlyTotal())}</Text>
+                    <Text style={styles.summarySubtext}>
+                        {activeTab === 'EXPENSE' ? 'Tổng chi phí từ các dịch vụ định kỳ đang hoạt động' : 'Tổng các khoản thu nhập đều đặn hàng tháng'}
+                    </Text>
                 </View>
             </View>
 
@@ -279,7 +302,7 @@ export default function RecurringScreen() {
                 </View>
             ) : (
                 <FlatList
-                    data={recurrings}
+                    data={filteredRecurrings}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={renderRecurringCard}
                     contentContainerStyle={styles.listContent}
@@ -312,11 +335,18 @@ const styles = StyleSheet.create({
     backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
     title: { fontSize: 18, fontWeight: '800', color: '#111827' },
 
-    summaryContainer: { padding: 16 },
+    tabContainer: { flexDirection: 'row', backgroundColor: '#F3F4F6', marginHorizontal: 16, marginTop: 8, borderRadius: 12, padding: 4 },
+    tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+    tabBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+    tabText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+    tabTextActive: { color: '#111827', fontWeight: '700' },
+
+    summaryContainer: { padding: 16, paddingTop: 12 },
     summaryCard: { backgroundColor: '#1E1B4B', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 3 },
+    summaryCardIncome: { backgroundColor: '#064E3B' },
     summaryLabel: { fontSize: 13, fontWeight: '700', color: '#C7D2FE', marginBottom: 8 },
     summaryValue: { fontSize: 28, fontWeight: '900', color: '#fff', marginBottom: 8 },
-    summarySubtext: { fontSize: 11, color: '#9CA3AF', textAlign: 'center' },
+    summarySubtext: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', paddingHorizontal: 10 },
 
     listContent: { paddingHorizontal: 16, paddingBottom: 100 },
     loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },

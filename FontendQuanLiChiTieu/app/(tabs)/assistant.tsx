@@ -500,6 +500,26 @@ export default function AssistantScreen() {
                                     <Text style={styles.cancelBtnText}>Hủy</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
+                                    style={[styles.confirmBtn, { backgroundColor: '#F3F4F6', flex: 0.8, borderColor: '#E5E7EB', borderWidth: 1 }]} 
+                                    onPress={() => {
+                                        handleCancelTransaction(item.id);
+                                        router.push({
+                                            pathname: '/(tabs)/add',
+                                            params: {
+                                                initialType: item.txData.type,
+                                                amount: item.txData.amount?.toString(),
+                                                categoryId: item.txData.categoryId?.toString(),
+                                                categoryName: item.txData.category,
+                                                walletId: item.txData.walletId?.toString(),
+                                                description: item.txData.description
+                                            }
+                                        });
+                                    }}
+                                    disabled={confirmingMessageId === item.id}
+                                >
+                                    <Text style={[styles.cancelBtnText, { color: '#4B5563' }]}>Sửa</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
                                     style={[styles.confirmBtn, styles.okBtn]} 
                                     onPress={() => handleConfirmTransaction(item.id, item.txData)}
                                     disabled={confirmingMessageId === item.id}
