@@ -126,7 +126,7 @@ public class AiService {
 
             log.info("Sending text to Gemini Flash...");
 
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-1.5-flash", apiKey, request);
             return parseGeminiResponse(response);
         } catch (Exception e) {
             log.error("Error calling Gemini Text API: {}", e.getMessage());
@@ -171,7 +171,7 @@ public class AiService {
 
             log.info("Sending receipt to Gemini Flash (size: {} chars)...", cleanData != null ? cleanData.length() : 0);
 
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-1.5-flash", apiKey, request);
             return parseGeminiResponse(response);
         } catch (Exception e) {
             log.error("Error calling Gemini Flash API: {}", e.getMessage());
@@ -265,7 +265,7 @@ public class AiService {
                     .build();
 
             log.info("Requesting AI Report Insight for {}/{}", month, year);
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-1.5-flash", apiKey, request);
             return parseGeminiResponse(response);
         } catch (Exception e) {
             log.error("AI Insight Error: {}", e.getMessage());
@@ -347,7 +347,7 @@ public class AiService {
                     .build();
 
             log.info("Requesting AI Budget Suggestion...");
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-1.5-flash", apiKey, request);
 
             String rawText = response.getCandidates().get(0).getContent().getParts().get(0).getText();
             String cleanJson = rawText.replaceAll("(?s)^.*?(\\[.*?\\]).*$", "$1").trim();
@@ -432,7 +432,7 @@ public class AiService {
                     .build();
 
             log.info("Requesting AI Spending Pattern Analysis...");
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-1.5-flash", apiKey, request);
             return parseGeminiResponse(response);
         } catch (Exception e) {
             log.error("Spending pattern error: {}", e.getMessage());
