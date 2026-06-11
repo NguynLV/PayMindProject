@@ -134,7 +134,10 @@ public class AiService {
             if (errorMsg != null && (errorMsg.contains("429") || errorMsg.contains("403") || errorMsg.contains("400") || errorMsg.toLowerCase().contains("quota") || errorMsg.toLowerCase().contains("exhausted") || errorMsg.toLowerCase().contains("leaked") || errorMsg.toLowerCase().contains("expired"))) {
                 return Map.of("error", "API Key Gemini của bạn đã hết hạn hoặc bị lỗi (Hết Quota / Bị lộ). Vui lòng cập nhật API Key mới.");
             }
-            return Map.of("error", "AI Text Error: " + e.getMessage());
+            if (errorMsg != null && errorMsg.contains("503")) {
+                return Map.of("error", "Hệ thống AI của Google đang quá tải. Vui lòng thử lại sau vài phút nhé!");
+            }
+            return Map.of("error", "Đã có lỗi xảy ra khi kết nối với AI. Vui lòng thử lại sau.");
         }
     }
 
@@ -176,7 +179,10 @@ public class AiService {
             if (errorMsg != null && (errorMsg.contains("429") || errorMsg.contains("403") || errorMsg.contains("400") || errorMsg.toLowerCase().contains("quota") || errorMsg.toLowerCase().contains("exhausted") || errorMsg.toLowerCase().contains("leaked") || errorMsg.toLowerCase().contains("expired"))) {
                 return Map.of("error", "API Key Gemini của bạn đã hết hạn hoặc bị lỗi (Hết Quota / Bị lộ). Vui lòng cập nhật API Key mới.");
             }
-            return Map.of("error", "AI Receipt Error: " + e.getMessage());
+            if (errorMsg != null && errorMsg.contains("503")) {
+                return Map.of("error", "Hệ thống phân tích hóa đơn của Google đang quá tải. Bạn chờ một lát rồi thử lại nhé!");
+            }
+            return Map.of("error", "Không thể đọc hóa đơn lúc này. Vui lòng nhập tay hoặc thử lại sau.");
         }
     }
 
