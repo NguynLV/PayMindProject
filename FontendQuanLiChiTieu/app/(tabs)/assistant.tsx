@@ -54,6 +54,8 @@ export default function AssistantScreen() {
     const flatListRef = useRef<FlatList>(null);
     const [aiUsageCount, setAiUsageCount] = useState(0);
     const [showLimitModal, setShowLimitModal] = useState(false);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editFormData, setEditFormData] = useState<any>(null);
 
     const updateUsageStats = async (isPrem: boolean) => {
         const stats = await AiLimitService.getUsageStats(isPrem);
@@ -161,6 +163,72 @@ export default function AssistantScreen() {
             }
             return msg;
         }));
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingMessageId || !editFormData) return;
+        setConfirmingMessageId(editingMessageId);
+        try {
+            let finalCategoryId = editFormData.categoryId;
+            if (!finalCategoryId && editFormData.category) {
+                const matched = categories.find(c => c.name.toLowerCase() === editFormData.category.toLowerCase());
+                if (matched) {
+                    finalCategoryId = matched.id;
+                } else {
+                    const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899'];
+                    const newCat = await CategoryService.createCategory({
+                        name: editFormData.category.trim().charAt(0).toUpperCase() + editFormData.category.trim().slice(1),
+                        icon: 'apps',
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        type: editFormData.type
+                    });
+                    finalCategoryId = newCat.id;
+                    setCategories(prev => [...prev, newCat]);
+                }
+            }
+
+            const req: TransactionRequest = {
+                amount: Number(editFormData.amount) || 0,
+                type: editFormData.type,
+                categoryId: finalCategoryId,
+                walletId: editFormData.walletId || (wallets.length > 0 ? wallets[0].id : null),
+                transactionDate: new Date().toISOString(),
+                description: editFormData.description || 'Sửa từ Trợ lý AI'
+            };
+
+            await TransactionService.createTransaction(req);
+
+            const selectedWallet = wallets.find(w => w.id === editFormData.walletId);
+            const newWalletName = selectedWallet ? selectedWallet.name : (wallets.length > 0 ? wallets[0].name : '');
+
+            setMessages(prev => prev.map(msg => {
+                if (msg.id === editingMessageId) {
+                    return {
+                        ...msg,
+                        text: `Đã lưu giao dịch: ${editFormData.type === 'INCOME' ? 'Thu' : 'Chi'} ${new Intl.NumberFormat('vi-VN').format(Number(editFormData.amount) || 0)}đ vào mục "${editFormData.category}". ✅`,
+                        isConfirmation: false,
+                        isTransaction: true,
+                        status: 'success',
+                        txData: {
+                            ...msg.txData,
+                            ...editFormData,
+                            categoryId: finalCategoryId,
+                            walletName: newWalletName
+                        }
+                    };
+                }
+                return msg;
+            }));
+            
+            setEditingMessageId(null);
+            setEditFormData(null);
+        } catch (error: any) {
+            console.log('Error saving edited transaction', error);
+            const msg = error.response?.data?.message || error.message || 'Lỗi kết nối';
+            alert(`Không thể lưu giao dịch: ${msg}`);
+        } finally {
+            setConfirmingMessageId(null);
+        }
     };
 
     const addMessage = (msg: Omit<Message, 'timestamp' | 'id'>) => {
@@ -502,18 +570,15 @@ export default function AssistantScreen() {
                                 <TouchableOpacity 
                                     style={[styles.confirmBtn, { backgroundColor: '#F3F4F6', flex: 0.8, borderColor: '#E5E7EB', borderWidth: 1 }]} 
                                     onPress={() => {
-                                        handleCancelTransaction(item.id);
-                                        router.push({
-                                            pathname: '/(tabs)/add',
-                                            params: {
-                                                initialType: item.txData.type,
-                                                amount: item.txData.amount?.toString(),
-                                                categoryId: item.txData.categoryId?.toString(),
-                                                categoryName: item.txData.category,
-                                                walletId: item.txData.walletId?.toString(),
-                                                description: item.txData.description
-                                            }
+                                        setEditFormData({
+                                            type: item.txData.type || 'EXPENSE',
+                                            amount: item.txData.amount?.toString() || '0',
+                                            categoryId: item.txData.categoryId,
+                                            category: item.txData.category || item.txData.categoryName || item.txData.suggestedCategoryName || '',
+                                            walletId: item.txData.walletId || (wallets.length > 0 ? wallets[0].id : null),
+                                            description: (item.txData.description || '').trim() || 'Giao dịch qua AI'
                                         });
+                                        setEditingMessageId(item.id);
                                     }}
                                     disabled={confirmingMessageId === item.id}
                                 >
@@ -558,6 +623,12 @@ export default function AssistantScreen() {
                                 <Text style={styles.txLabel}>Ví:</Text>
                                 <Text style={styles.txValue}>{item.txData.walletName}</Text>
                             </View>
+                            {item.txData.description ? (
+                                <View style={styles.txRow}>
+                                    <Text style={styles.txLabel}>Mô tả:</Text>
+                                    <Text style={styles.txValue} numberOfLines={1}>{item.txData.description}</Text>
+                                </View>
+                            ) : null}
                         </View>
                     )}
 
@@ -570,7 +641,7 @@ export default function AssistantScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             
             {/* Redesigned Clean Header */}
@@ -733,7 +804,148 @@ export default function AssistantScreen() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+            {/* Quick Edit Modal */}
+            <Modal
+                visible={!!editingMessageId}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => {
+                    setEditingMessageId(null);
+                    setEditFormData(null);
+                }}
+            >
+                <KeyboardAvoidingView 
+                    style={styles.editModalOverlay}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                >
+                    {editFormData && (
+                        <View style={[styles.editModalContent, { paddingBottom: Math.max(insets.bottom + 20, 32) }]}>
+                            <View style={styles.editModalHeader}>
+                                <Text style={styles.editModalTitle}>Chỉnh sửa nhanh</Text>
+                                <TouchableOpacity 
+                                    style={styles.editModalCloseBtn}
+                                    onPress={() => {
+                                        setEditingMessageId(null);
+                                        setEditFormData(null);
+                                    }}
+                                >
+                                    <Ionicons name="close" size={24} color="#6B7280" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.editForm}>
+                                {/* Type Toggle */}
+                                <View style={styles.editTypeRow}>
+                                    <TouchableOpacity 
+                                        style={[styles.editTypeBtn, editFormData.type === 'EXPENSE' && styles.editTypeBtnExpense]}
+                                        onPress={() => setEditFormData({ ...editFormData, type: 'EXPENSE' })}
+                                    >
+                                        <Text style={[styles.editTypeBtnText, editFormData.type === 'EXPENSE' && {color: '#EF4444'}]}>Chi tiêu</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={[styles.editTypeBtn, editFormData.type === 'INCOME' && styles.editTypeBtnIncome]}
+                                        onPress={() => setEditFormData({ ...editFormData, type: 'INCOME' })}
+                                    >
+                                        <Text style={[styles.editTypeBtnText, editFormData.type === 'INCOME' && {color: '#10B981'}]}>Thu nhập</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Amount */}
+                                <View style={styles.editInputGroup}>
+                                    <Text style={styles.editInputLabel}>Số tiền</Text>
+                                    <View style={styles.editInputWrapper}>
+                                        <TextInput
+                                            style={[styles.editTextInput, { fontSize: 18, fontWeight: '700', color: editFormData.type === 'INCOME' ? '#10B981' : '#EF4444' }]}
+                                            keyboardType="numeric"
+                                            value={editFormData.amount}
+                                            onChangeText={(val) => setEditFormData({ ...editFormData, amount: val })}
+                                        />
+                                        <Text style={styles.editCurrencySuffix}>đ</Text>
+                                    </View>
+                                </View>
+
+                                {/* Category */}
+                                <View style={styles.editInputGroup}>
+                                    <Text style={styles.editInputLabel}>Danh mục (nhập tên mới hoặc chọn dưới)</Text>
+                                    <TextInput
+                                        style={styles.editTextInput}
+                                        value={editFormData.category}
+                                        onChangeText={(val) => {
+                                            const matched = categories.find(c => c.name.toLowerCase() === val.toLowerCase());
+                                            setEditFormData({ 
+                                                ...editFormData, 
+                                                category: val, 
+                                                categoryId: matched ? matched.id : null 
+                                            });
+                                        }}
+                                        placeholder="Nhập danh mục..."
+                                    />
+                                    <FlatList
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        data={categories.filter(c => c.type === editFormData.type)}
+                                        keyExtractor={item => item.id}
+                                        style={{ marginTop: 8 }}
+                                        renderItem={({ item }) => (
+                                            <TouchableOpacity 
+                                                style={[styles.editPill, editFormData.categoryId === item.id && { backgroundColor: item.color + '20', borderColor: item.color }]}
+                                                onPress={() => setEditFormData({ ...editFormData, categoryId: item.id, category: item.name })}
+                                            >
+                                                <Text style={[styles.editPillText, editFormData.categoryId === item.id && { color: item.color, fontWeight: '600' }]}>{item.name}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    />
+                                </View>
+
+                                {/* Wallet */}
+                                <View style={styles.editInputGroup}>
+                                    <Text style={styles.editInputLabel}>Ví / Nguồn tiền</Text>
+                                    <FlatList
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        data={wallets}
+                                        keyExtractor={item => item.id}
+                                        renderItem={({ item }) => (
+                                            <TouchableOpacity 
+                                                style={[styles.editPill, editFormData.walletId === item.id && { backgroundColor: '#EEF2FF', borderColor: '#6366F1' }]}
+                                                onPress={() => setEditFormData({ ...editFormData, walletId: item.id })}
+                                            >
+                                                <Text style={[styles.editPillText, editFormData.walletId === item.id && { color: '#6366F1', fontWeight: '600' }]}>{item.name}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    />
+                                </View>
+
+                                {/* Description */}
+                                <View style={styles.editInputGroup}>
+                                    <Text style={styles.editInputLabel}>Ghi chú</Text>
+                                    <TextInput
+                                        style={[styles.editTextInput, { minHeight: 44, maxHeight: 80 }]}
+                                        value={editFormData.description}
+                                        onChangeText={(val) => setEditFormData({ ...editFormData, description: val })}
+                                        placeholder="Ghi chú thêm..."
+                                        multiline={true}
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Actions */}
+                            <TouchableOpacity 
+                                style={styles.editSaveBtn}
+                                onPress={handleSaveEdit}
+                                disabled={confirmingMessageId === editingMessageId}
+                            >
+                                {confirmingMessageId === editingMessageId ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={styles.editSaveBtnText}>Lưu giao dịch</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </KeyboardAvoidingView>
+            </Modal>
+        </View>
     );
 }
 
@@ -1070,5 +1282,136 @@ const styles = StyleSheet.create({
         right: 16,
         zIndex: 10,
         padding: 4,
+    },
+    /* Quick Edit Modal */
+    editModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'flex-end',
+    },
+    editModalContent: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingHorizontal: 20,
+        paddingBottom: 32,
+        paddingTop: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 20,
+        maxHeight: '90%',
+    },
+    editModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    editModalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    editModalCloseBtn: {
+        padding: 4,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 20,
+    },
+    editForm: {
+        gap: 16,
+    },
+    editTypeRow: {
+        flexDirection: 'row',
+        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        padding: 4,
+    },
+    editTypeBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    editTypeBtnExpense: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    editTypeBtnIncome: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    editTypeBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#6B7280',
+    },
+    editInputGroup: {},
+    editInputLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#4B5563',
+        marginBottom: 8,
+    },
+    editInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+    },
+    editTextInput: {
+        flex: 1,
+        paddingVertical: 12,
+        fontSize: 15,
+        color: '#111827',
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+    },
+    editCurrencySuffix: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        marginLeft: 8,
+    },
+    editPill: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'transparent',
+        marginRight: 8,
+    },
+    editPillText: {
+        fontSize: 13,
+        color: '#4B5563',
+        fontWeight: '500',
+    },
+    editSaveBtn: {
+        backgroundColor: '#6366F1',
+        paddingVertical: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+        marginTop: 24,
+    },
+    editSaveBtnText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
     },
 });

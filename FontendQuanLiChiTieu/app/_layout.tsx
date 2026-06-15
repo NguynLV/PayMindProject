@@ -52,9 +52,19 @@ export default function RootLayout() {
 
     // Fetch Remote Config (Cơ chế gác cổng từ xa)
     const fetchConfig = async () => {
+      if (__DEV__) {
+        // Trong môi trường test, bỏ qua check config để app khởi động ngay lập tức
+        setIsConfigLoaded(true);
+        return;
+      }
+
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // Giới hạn 3 giây
         // Thay link này bằng link thật khi bạn đưa web lên mạng (ví dụ: https://paymind.com/config.json)
-        const response = await fetch('https://your-domain-here.com/config.json');
+        const response = await fetch('https://your-domain-here.com/config.json', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
           const data = await response.json();
           if (data.maintenance) {

@@ -2,9 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// Use Render production URL for live testing
-const BASE_URL = 'https://paymindserver.onrender.com/QuanLiChiTieu';
-// const BASE_URL = 'http://192.168.1.41:8080/QuanLiChiTieu'; // Local backend
+// Tự động chuyển đổi môi trường:
+// Nếu đang code/test (Development) -> dùng IP Local
+// Nếu đã build app cho người dùng (Production) -> dùng server Render
+const BASE_URL = __DEV__ 
+    ? 'http://192.168.1.73:8080/QuanLiChiTieu'  // Local IP để test
+    : 'https://paymindserver.onrender.com/QuanLiChiTieu'; // Server thật cho User
 
 export const TOKEN_KEY = 'auth_token';
 

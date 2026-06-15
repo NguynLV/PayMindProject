@@ -162,13 +162,33 @@ export default function AddTransactionScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            setAmount('');
-            setExpression('0');
-            setDescription('');
+            if (params.fromAssistant === 'true' || params.amount) {
+                const initAmount = params.amount ? (params.amount as string) : '0';
+                setExpression(initAmount);
+                setAmount(initAmount);
+                setInputMode('manual');
+            } else {
+                setAmount('');
+                setExpression('0');
+                setInputMode('camera_capture');
+            }
+
+            if (params.description) {
+                setDescription(params.description as string);
+            } else {
+                setDescription('');
+            }
+            
+            if (params.categoryId) {
+                setCategoryId(Number(params.categoryId));
+            }
+            
+            if (params.walletId) {
+                setWalletId(Number(params.walletId));
+            }
+
             setImageUri(null);
             setMood(null);
-            
-            setInputMode('camera_capture');
 
             if (params.date) {
                 setDate(new Date(params.date as string));
@@ -181,11 +201,25 @@ export default function AddTransactionScreen() {
                 const targetType = params.initialType as TransactionType;
                 setType(targetType);
                 fetchInitialData(targetType);
-                router.setParams({ initialType: undefined });
+                router.setParams({ 
+                    initialType: undefined,
+                    amount: undefined,
+                    categoryId: undefined,
+                    description: undefined,
+                    walletId: undefined
+                });
             } else {
                 fetchInitialData(type);
+                if (params.amount) {
+                    router.setParams({ 
+                        amount: undefined,
+                        categoryId: undefined,
+                        description: undefined,
+                        walletId: undefined
+                    });
+                }
             }
-        }, [params.initialType, params.date]) // Removed type and router from dependencies to avoid triggering on state changes
+        }, [params.initialType, params.date, params.amount, params.categoryId, params.description, params.walletId]) 
     );
 
     useEffect(() => {
