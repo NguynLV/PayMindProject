@@ -106,7 +106,7 @@ public class PaymentService {
             log.info("Attempting full scan for normalized match: {}", norm);
             try {
                 for (User u : redisUserRepository.findAll()) {
-                    if (u.getEmail() == null) continue;
+                    if (u == null || u.getEmail() == null) continue;
                     String candidate = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
                     if (candidate.equals(norm)) {
                         user = u;
@@ -192,7 +192,7 @@ public class PaymentService {
 
         try {
             for (User u : redisUserRepository.findAll()) {
-                if (u.getEmail() == null) continue;
+                if (u == null || u.getEmail() == null) continue;
                 String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
                 if (!normUserEmail.isEmpty() && normDesc.contains(normUserEmail)) {
                     log.info("Matched normalized email '{}' inside description", u.getEmail());
@@ -218,7 +218,7 @@ public class PaymentService {
             if (token.length() >= 5) {
                 try {
                     for (User u : redisUserRepository.findAll()) {
-                        if (u.getEmail() == null) continue;
+                        if (u == null || u.getEmail() == null) continue;
                         String normUserEmail = u.getEmail().toLowerCase().replaceAll("[^a-z0-9]", "");
                         if (normUserEmail.startsWith(token) || normUserEmail.contains(token)) {
                             log.info("Matched token '{}' to user email '{}'", token, u.getEmail());
