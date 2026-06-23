@@ -4,6 +4,7 @@ import com.example.AppQuanLiChiTieu.dto.request.GeminiRequest;
 import com.example.AppQuanLiChiTieu.dto.response.GeminiResponse;
 import com.example.AppQuanLiChiTieu.utils.GeminiClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.FeignException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -28,6 +29,15 @@ public class AiService {
 
     @Value("${gemini.api.key}")
     String apiKey;
+
+    // Models in priority order — will try each one before giving up
+    private static final String[] MODELS = {
+            "gemini-2.5-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash"
+    };
+    private static final int MAX_RETRIES = 2;
+    private static final long BASE_DELAY_MS = 1000; // 1 second
 
     private String getSystemPrompt(List<String> userCategories) {
         LocalDate now = LocalDate.now();
@@ -109,6 +119,89 @@ public class AiService {
                 now.getYear());
     }
 
+    /**
+     * Core method: call Gemini API with retry + cascading fallback through multiple models.
+     * For each model: retries MAX_RETRIES times on 503/429, then moves to next model.
+     * Models tried in order: gemini-2.5-flash → gemini-2.0-flash-lite → gemini-1.5-flash
+     */
+    private GeminiResponse callGeminiWithRetry(GeminiRequest request) {
+        Exception lastException = null;
+
+        for (int modelIdx = 0; modelIdx < MODELS.length; modelIdx++) {
+            String model = MODELS[modelIdx];
+
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    log.info("Calling Gemini model={} (attempt {}/{}, model {}/{})",
+                            model, attempt, MAX_RETRIES, modelIdx + 1, MODELS.length);
+                    return geminiClient.generateContent("v1beta", model, apiKey, request);
+                } catch (FeignException e) {
+                    int status = e.status();
+                    lastException = e;
+                    log.warn("Gemini API returned {} on model={} attempt {}/{}: {}",
+                            status, model, attempt, MAX_RETRIES, e.contentUTF8());
+
+                    if (status == 503 || status == 429) {
+                        if (attempt < MAX_RETRIES) {
+                            long delay = BASE_DELAY_MS * (1L << (attempt - 1)); // 1s, 2s
+                            log.info("Retrying in {}ms...", delay);
+                            try {
+                                Thread.sleep(delay);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                throw new RuntimeException("Interrupted during retry", ie);
+                            }
+                        } else {
+                            // Retries exhausted for this model, move to next
+                            log.warn("Model {} exhausted after {} retries, trying next model...",
+                                    model, MAX_RETRIES);
+                        }
+                    } else {
+                        // Non-retryable error (400, 403, etc.) — throw immediately
+                        throw e;
+                    }
+                }
+            }
+        }
+
+        // All models exhausted
+        log.error("All {} Gemini models failed. Last error: {}",
+                MODELS.length, lastException != null ? lastException.getMessage() : "unknown");
+        if (lastException instanceof FeignException) {
+            throw (FeignException) lastException;
+        }
+        throw new RuntimeException("All Gemini models unavailable", lastException);
+    }
+
+    /**
+     * Classifies a FeignException into a user-friendly Vietnamese error message.
+     */
+    private Map<String, Object> handleGeminiError(FeignException e, String context) {
+        int status = e.status();
+        String responseBody = e.contentUTF8();
+        log.error("Gemini {} error [HTTP {}]: {}", context, status, responseBody);
+
+        if (status == 429) {
+            if (responseBody != null && responseBody.contains("quota")) {
+                return Map.of("error", "API Gemini đã hết quota miễn phí trong ngày. Vui lòng thử lại sau 1 phút hoặc liên hệ admin để nâng cấp API plan.");
+            }
+            return Map.of("error", "API Gemini đã đạt giới hạn request. Vui lòng thử lại sau 30 giây nhé!");
+        }
+        if (status == 403) {
+            return Map.of("error", "API Key Gemini không có quyền truy cập. Vui lòng kiểm tra lại API Key.");
+        }
+        if (status == 400) {
+            if (responseBody != null && responseBody.toLowerCase().contains("api_key")) {
+                return Map.of("error", "API Key Gemini không hợp lệ. Vui lòng cập nhật API Key mới.");
+            }
+            return Map.of("error", "Dữ liệu gửi lên không hợp lệ. Vui lòng thử lại với ảnh/nội dung khác.");
+        }
+        if (status == 503) {
+            return Map.of("error", "Tất cả model AI đang quá tải. Vui lòng thử lại sau vài phút!");
+        }
+        return Map.of("error", "Lỗi kết nối AI (HTTP " + status + "). Vui lòng thử lại sau.");
+    }
+
     public Map<String, Object> processText(String text, List<String> categories) {
         try {
             GeminiRequest request = GeminiRequest.builder()
@@ -124,29 +217,34 @@ public class AiService {
                             .build())
                     .build();
 
-            log.info("Sending text to Gemini Flash...");
+            log.info("Sending text to Gemini...");
 
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = callGeminiWithRetry(request);
             return parseGeminiResponse(response);
+        } catch (FeignException e) {
+            return handleGeminiError(e, "Text");
         } catch (Exception e) {
             log.error("Error calling Gemini Text API: {}", e.getMessage());
-            String errorMsg = e.getMessage();
-            if (errorMsg != null && (errorMsg.contains("429") || errorMsg.contains("403") || errorMsg.contains("400") || errorMsg.toLowerCase().contains("quota") || errorMsg.toLowerCase().contains("exhausted") || errorMsg.toLowerCase().contains("leaked") || errorMsg.toLowerCase().contains("expired"))) {
-                return Map.of("error", "API Key Gemini của bạn đã hết hạn hoặc bị lỗi (Hết Quota / Bị lộ). Vui lòng cập nhật API Key mới.");
-            }
-            if (errorMsg != null && errorMsg.contains("503")) {
-                return Map.of("error", "Hệ thống AI của Google đang quá tải. Vui lòng thử lại sau vài phút nhé!");
-            }
             return Map.of("error", "Đã có lỗi xảy ra khi kết nối với AI. Vui lòng thử lại sau.");
         }
     }
 
     public Map<String, Object> scanReceipt(String base64Data, String mimeType, List<String> categories) {
+        // Input validation
+        if (base64Data == null || base64Data.isBlank()) {
+            return Map.of("error", "Không nhận được dữ liệu ảnh. Vui lòng chụp lại hoặc chọn ảnh khác.");
+        }
+
         try {
             // Remove header if present (e.g. "data:image/jpeg;base64,")
             String cleanData = base64Data;
-            if (base64Data != null && base64Data.contains(",")) {
+            if (base64Data.contains(",")) {
                 cleanData = base64Data.split(",")[1];
+            }
+
+            // Check image size (Gemini limit ~20MB for inline data)
+            if (cleanData.length() > 20_000_000) {
+                return Map.of("error", "Ảnh quá lớn (>15MB). Vui lòng chụp lại với chất lượng thấp hơn.");
             }
 
             GeminiRequest request = GeminiRequest.builder()
@@ -169,19 +267,14 @@ public class AiService {
                             .build())
                     .build();
 
-            log.info("Sending receipt to Gemini Flash (size: {} chars)...", cleanData != null ? cleanData.length() : 0);
+            log.info("Sending receipt to Gemini (size: {} chars)...", cleanData.length());
 
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = callGeminiWithRetry(request);
             return parseGeminiResponse(response);
+        } catch (FeignException e) {
+            return handleGeminiError(e, "Receipt Scan");
         } catch (Exception e) {
-            log.error("Error calling Gemini Flash API: {}", e.getMessage());
-            String errorMsg = e.getMessage();
-            if (errorMsg != null && (errorMsg.contains("429") || errorMsg.contains("403") || errorMsg.contains("400") || errorMsg.toLowerCase().contains("quota") || errorMsg.toLowerCase().contains("exhausted") || errorMsg.toLowerCase().contains("leaked") || errorMsg.toLowerCase().contains("expired"))) {
-                return Map.of("error", "API Key Gemini của bạn đã hết hạn hoặc bị lỗi (Hết Quota / Bị lộ). Vui lòng cập nhật API Key mới.");
-            }
-            if (errorMsg != null && errorMsg.contains("503")) {
-                return Map.of("error", "Hệ thống phân tích hóa đơn của Google đang quá tải. Bạn chờ một lát rồi thử lại nhé!");
-            }
+            log.error("Error calling Gemini Receipt API: {}", e.getMessage());
             return Map.of("error", "Không thể đọc hóa đơn lúc này. Vui lòng nhập tay hoặc thử lại sau.");
         }
     }
@@ -265,8 +358,10 @@ public class AiService {
                     .build();
 
             log.info("Requesting AI Report Insight for {}/{}", month, year);
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = callGeminiWithRetry(request);
             return parseGeminiResponse(response);
+        } catch (FeignException e) {
+            return handleGeminiError(e, "Report Insight");
         } catch (Exception e) {
             log.error("AI Insight Error: {}", e.getMessage());
             return Map.of("error", "AI Insight Error: " + e.getMessage());
@@ -347,13 +442,15 @@ public class AiService {
                     .build();
 
             log.info("Requesting AI Budget Suggestion...");
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = callGeminiWithRetry(request);
 
             String rawText = response.getCandidates().get(0).getContent().getParts().get(0).getText();
             String cleanJson = rawText.replaceAll("(?s)^.*?(\\[.*?\\]).*$", "$1").trim();
 
             List<Map<String, Object>> suggestions = objectMapper.readValue(cleanJson, List.class);
             return Map.of("suggestions", suggestions, "monthlyIncome", (long) totalIncome);
+        } catch (FeignException e) {
+            return handleGeminiError(e, "Budget Suggestion");
         } catch (Exception e) {
             log.error("Budget suggestion error: {}", e.getMessage());
             return Map.of("error", e.getMessage());
@@ -432,8 +529,10 @@ public class AiService {
                     .build();
 
             log.info("Requesting AI Spending Pattern Analysis...");
-            GeminiResponse response = geminiClient.generateContent("v1beta", "gemini-2.5-flash", apiKey, request);
+            GeminiResponse response = callGeminiWithRetry(request);
             return parseGeminiResponse(response);
+        } catch (FeignException e) {
+            return handleGeminiError(e, "Spending Pattern");
         } catch (Exception e) {
             log.error("Spending pattern error: {}", e.getMessage());
             return Map.of("error", e.getMessage());

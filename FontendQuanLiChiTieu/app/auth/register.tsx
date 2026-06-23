@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { CustomDatePicker } from '@/components/common/CustomDatePicker';
 import AuthService from '@/services/auth.service';
 
 import { saveToken } from '@/services/api';
@@ -246,22 +246,20 @@ export default function RegisterScreen() {
                                         onPress={() => setShowDatePicker(true)}
                                     >
                                         <Ionicons name="calendar-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
-                                        <Text style={[styles.input, { marginTop: Platform.OS === 'ios' ? 14 : 10, color: '#1F2937' }]}>
+                                        <Text style={{ flex: 1, fontSize: 14, color: '#1F2937', fontWeight: '500' }}>
                                             {`${birthday.getDate().toString().padStart(2, '0')}/${(birthday.getMonth() + 1).toString().padStart(2, '0')}/${birthday.getFullYear()}`}
                                         </Text>
                                     </TouchableOpacity>
-                                    {showDatePicker && (
-                                        <DateTimePicker
-                                            value={birthday}
-                                            mode="date"
-                                            display="default"
-                                            onChange={(event: any, selectedDate?: Date) => {
-                                                setShowDatePicker(Platform.OS === 'ios');
-                                                if (selectedDate) setBirthday(selectedDate);
-                                            }}
-                                            maximumDate={new Date()}
-                                        />
-                                    )}
+                                    <CustomDatePicker
+                                        visible={showDatePicker}
+                                        onClose={() => setShowDatePicker(false)}
+                                        initialDate={birthday}
+                                        onSelect={(selectedDate) => {
+                                            setBirthday(selectedDate);
+                                        }}
+                                        title="Chọn ngày sinh"
+                                        maxDate={new Date()}
+                                    />
                                 </View>
                             </>
                         )}

@@ -54,10 +54,10 @@ jwt:
 
 brevo:
   api:
-    key: ${BREVO_API_KEY:}
+    key: ${BREVO_API_KEY:xkeysib-b69ead37f181b746740356a7b31e79843af4f8c628dc749787264e9061d9d76-xXPz1QFCPYgC1PZd}
   sender:
     email: ${BREVO_SENDER_EMAIL:iphone0868369069@gmail.com}
-    name: ${BREVO_SENDER_NAME:QuanLiChiTieu}
+    name: ${BREVO_SENDER_NAME:PayMind}
 
 sepay:
   token: ${SEPAY_TOKEN:sepay_secret_token}
@@ -66,7 +66,7 @@ sepay:
 
 gemini:
   api:
-    key: ${GEMINI_API_KEY:}
+    key: ${GEMINI_API_KEY}
     url: ${GEMINI_API_URL:https://generativelanguage.googleapis.com}
 
 # Fallback for Feign

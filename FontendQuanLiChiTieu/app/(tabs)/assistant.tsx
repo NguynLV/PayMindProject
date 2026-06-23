@@ -29,6 +29,7 @@ interface Message {
     txData?: any;
     status?: 'pending' | 'success' | 'error';
     image?: string;
+    retryData?: { base64: string; mime: string };
 }
 
 const INITIAL_MESSAGES: Message[] = [
@@ -437,15 +438,17 @@ export default function AssistantScreen() {
             addMessage({
                 sender: 'bot',
                 text: isImage
-                    ? `Xin lỗi, tôi không thể đọc được thông tin từ hóa đơn này.${errorDetail} Bạn hãy thử chụp lại rõ hơn hoặc nhập tay nhé!`
-                    : `Xin lỗi, tôi chưa rõ số tiền hoặc hạng mục bạn muốn lưu.${errorDetail} Bạn có thể ví dụ: "Ăn sáng hết 30k" được không?`
+                    ? `Xin lỗi, tôi không thể đọc được thông tin từ hóa đơn này.${errorDetail} Bạn hãy bấm "Thử lại" hoặc nhập tay nhé!`
+                    : `Xin lỗi, tôi chưa rõ số tiền hoặc hạng mục bạn muốn lưu.${errorDetail} Bạn có thể ví dụ: "Ăn sáng hết 30k" được không?`,
+                ...(isImage && base64 ? { retryData: { base64: base64, mime: mime || 'image/jpeg' } } : {})
             });
         } catch (error: any) {
             console.log('Error processing AI message', error);
             const msg = error.response?.data?.message || error.message || 'Lỗi kết nối';
             addMessage({
                 sender: 'bot',
-                text: `Có lỗi xảy ra khi tôi đang xử lý thông tin (${msg}). Bạn thử lại nhé!`
+                text: `Có lỗi xảy ra khi tôi đang xử lý thông tin (${msg}). Bạn thử lại nhé!`,
+                ...(isImage && base64 ? { retryData: { base64: base64, mime: mime || 'image/jpeg' } } : {})
             });
         } finally {
             setIsTyping(false);
@@ -630,6 +633,26 @@ export default function AssistantScreen() {
                                 </View>
                             ) : null}
                         </View>
+                    )}
+
+                    {item.retryData && (
+                        <TouchableOpacity
+                            style={styles.retryBtn}
+                            onPress={() => {
+                                // Remove this error message
+                                setMessages(prev => prev.filter(m => m.id !== item.id));
+                                // Re-process with saved data
+                                addMessage({
+                                    sender: 'user',
+                                    text: 'Đang thử quét lại hóa đơn...'
+                                });
+                                processMessage('Receipt scan', true, item.retryData!.base64, item.retryData!.mime);
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="refresh" size={14} color="#6366F1" />
+                            <Text style={styles.retryBtnText}>Thử lại</Text>
+                        </TouchableOpacity>
                     )}
 
                     <Text style={[styles.timestamp, isUser ? styles.userTimestamp : styles.botTimestamp]}>
@@ -1122,6 +1145,24 @@ const styles = StyleSheet.create({
     },
     okBtnText: {
         color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+
+    /* Retry Button */
+    retryBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: '#EEF2FF',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginTop: 8,
+        gap: 5,
+    },
+    retryBtnText: {
+        color: '#6366F1',
         fontSize: 12,
         fontWeight: '600',
     },

@@ -52,32 +52,8 @@ export default function RootLayout() {
 
     // Fetch Remote Config (Cơ chế gác cổng từ xa)
     const fetchConfig = async () => {
-      if (__DEV__) {
-        // Trong môi trường test, bỏ qua check config để app khởi động ngay lập tức
-        setIsConfigLoaded(true);
-        return;
-      }
-
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // Giới hạn 3 giây
-        // Thay link này bằng link thật khi bạn đưa web lên mạng (ví dụ: https://paymind.com/config.json)
-        const response = await fetch('https://your-domain-here.com/config.json', { signal: controller.signal });
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.maintenance) {
-            setIsMaintenance(true);
-            setMaintenanceMsg(data.maintenanceMessage || 'Hệ thống đang bảo trì.');
-          }
-          // Gợi ý: Bạn có thể lưu data.geminiApiKey vào AsyncStorage hoặc Context ở đây để các màn hình khác sử dụng
-        }
-      } catch (error) {
-        console.warn('Lỗi khi tải config từ xa, bỏ qua...', error);
-      } finally {
-        setIsConfigLoaded(true);
-      }
+      // Tạm thời bỏ qua việc fetch config ảo để tránh làm chậm thời gian load app 3 giây
+      setIsConfigLoaded(true);
     };
     
     fetchConfig();
