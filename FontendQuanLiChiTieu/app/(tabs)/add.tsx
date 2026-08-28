@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Platform, useWindowDimensions, Image, StatusBar, KeyboardAvoidingView, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Platform, useWindowDimensions, Image, KeyboardAvoidingView, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -419,6 +420,7 @@ export default function AddTransactionScreen() {
     };
 
     const handleKeyPress = (key: string) => {
+        Keyboard.dismiss();
         if (key === 'C') {
             setExpression('0');
         } else if (key === 'backspace') {
@@ -524,9 +526,9 @@ export default function AddTransactionScreen() {
     if (inputMode === 'camera_capture') {
         return (
             <View style={styles.captureContainer}>
-                <StatusBar barStyle="light-content" backgroundColor="#000000" />
+                <StatusBar style="light" animated />
                 
-                <View style={[styles.captureHeader, { paddingTop: insets.top, height: 56 + insets.top }]}>
+                <View style={[styles.captureHeader, { paddingTop: Math.max(insets.top, 16), height: 56 + Math.max(insets.top, 16) }]}>
                     <TouchableOpacity style={styles.captureCancelBtn} onPress={() => router.back()} activeOpacity={0.7}>
                         <Text style={styles.captureCancelText}>Hủy</Text>
                     </TouchableOpacity>
@@ -606,31 +608,38 @@ export default function AddTransactionScreen() {
         return (
             <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setIsAmountFocused(false); }}>
                 <View style={styles.manualContainer}>
-                    <StatusBar barStyle="light-content" backgroundColor={imageUri ? '#111111' : gradientColors[0]} />
+                    <StatusBar style="light" animated />
                 
                 {/* Top Half: Photo or Gradient */}
                 {imageUri ? (
-                    <View style={[styles.manualTopHalf, { paddingTop: insets.top, paddingHorizontal: 0, paddingBottom: 0 }, !isAmountFocused && { flex: 1.4 }, isAmountFocused && { flex: 0.5 }]}>
+                    <View style={[styles.manualTopHalf, { paddingTop: insets.top, paddingHorizontal: 0, paddingBottom: 0 }]}>
                         <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
                         {/* Dark overlay for readability */}
                         <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' }} />
                         
                         <View style={{ flex: 1 }} />
-                        <View style={[styles.manualAmountGlassCard, { marginHorizontal: 20, marginBottom: 24 }]}>
+                        <View style={[styles.manualAmountGlassCard, { marginHorizontal: 20, marginBottom: 20 }]}>
                             {/* The Glass Card inside Photo */}
-                            <TouchableOpacity 
-                                style={styles.manualAmountRow} 
-                                onPress={() => setIsAmountFocused(true)}
-                                activeOpacity={0.8}
-                            >
+                            <View style={styles.manualAmountRow}>
                                 <Text style={[styles.manualAmountSign, !isExpense && { color: '#10B981' }]}>
                                     {isExpense ? '-' : '+'}
                                 </Text>
-                                <Text style={styles.manualAmountValue} numberOfLines={1} adjustsFontSizeToFit>
-                                    {formatExpression(expression) || '0'}
-                                </Text>
+                                <TextInput
+                                    style={styles.manualAmountValue}
+                                    placeholder="0"
+                                    placeholderTextColor="rgba(255,255,255,0.6)"
+                                    value={expression !== '0' && expression !== '' ? formatExpression(expression) : ''}
+                                    onChangeText={(text) => {
+                                        const numeric = text.replace(/[^0-9]/g, '');
+                                        setExpression(numeric || '0');
+                                    }}
+                                    keyboardType="numeric"
+                                    returnKeyType="done"
+                                    onFocus={() => setIsAmountFocused(true)}
+                                    onBlur={() => setIsAmountFocused(false)}
+                                />
                                 <Text style={styles.manualAmountCurrency}>đ</Text>
-                            </TouchableOpacity>
+                            </View>
 
                             <View style={styles.manualNoteInputWrapper}>
                                 <Ionicons name="pencil" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
@@ -641,6 +650,11 @@ export default function AddTransactionScreen() {
                                     value={description}
                                     onChangeText={setDescription}
                                     onFocus={() => setIsAmountFocused(false)}
+                                    returnKeyType="done"
+                                    onSubmitEditing={() => {
+                                        Keyboard.dismiss();
+                                        setIsAmountFocused(true);
+                                    }}
                                 />
                             </View>
                         </View>
@@ -648,7 +662,7 @@ export default function AddTransactionScreen() {
                 ) : (
                     <LinearGradient
                         colors={gradientColors as [string, string, string]}
-                        style={[styles.manualTopHalf, { paddingTop: insets.top }, !isAmountFocused && { flex: 1.4 }, isAmountFocused && { flex: 0.5 }]}
+                        style={[styles.manualTopHalf, { paddingTop: insets.top }]}
                     >
                         <View style={{ flex: 1, justifyContent: 'center' }}>
                             <View style={styles.manualBigCatIconContainer}>
@@ -667,19 +681,26 @@ export default function AddTransactionScreen() {
                         </View>
 
                         <View style={styles.manualAmountGlassCard}>
-                            <TouchableOpacity 
-                                style={styles.manualAmountRow} 
-                                onPress={() => setIsAmountFocused(true)}
-                                activeOpacity={0.8}
-                            >
+                            <View style={styles.manualAmountRow}>
                                 <Text style={[styles.manualAmountSign, !isExpense && { color: '#10B981' }]}>
                                     {isExpense ? '-' : '+'}
                                 </Text>
-                                <Text style={styles.manualAmountValue} numberOfLines={1} adjustsFontSizeToFit>
-                                    {formatExpression(expression) || '0'}
-                                </Text>
+                                <TextInput
+                                    style={styles.manualAmountValue}
+                                    placeholder="0"
+                                    placeholderTextColor="rgba(255,255,255,0.6)"
+                                    value={expression !== '0' && expression !== '' ? formatExpression(expression) : ''}
+                                    onChangeText={(text) => {
+                                        const numeric = text.replace(/[^0-9]/g, '');
+                                        setExpression(numeric || '0');
+                                    }}
+                                    keyboardType="numeric"
+                                    returnKeyType="done"
+                                    onFocus={() => setIsAmountFocused(true)}
+                                    onBlur={() => setIsAmountFocused(false)}
+                                />
                                 <Text style={styles.manualAmountCurrency}>đ</Text>
-                            </TouchableOpacity>
+                            </View>
 
                             <View style={styles.manualNoteInputWrapper}>
                                 <Ionicons name="pencil" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
@@ -690,6 +711,11 @@ export default function AddTransactionScreen() {
                                     value={description}
                                     onChangeText={setDescription}
                                     onFocus={() => setIsAmountFocused(false)}
+                                    returnKeyType="done"
+                                    onSubmitEditing={() => {
+                                        Keyboard.dismiss();
+                                        setIsAmountFocused(true);
+                                    }}
                                 />
                             </View>
                         </View>
@@ -697,128 +723,108 @@ export default function AddTransactionScreen() {
                 )}
 
                 {/* Bottom Half: Black Background */}
-                <View style={[styles.manualBottomHalf, isAmountFocused && { flex: 1.5, paddingTop: 8 }]}>
+                <View style={styles.manualBottomHalf}>
                     
-                    {/* Selectors Row */}
-                    {(!isAmountFocused) && (
-                        <View style={{ flex: 1, justifyContent: 'center', paddingTop: 30 }}>
-                            {/* Mood Selector */}
-                            {!isAmountFocused && (
-                                <View style={styles.moodSelector}>
-                                    {(['happy', 'neutral', 'sad'] as const).map(m => (
-                                        <TouchableOpacity 
-                                            key={m} 
-                                            style={[styles.moodBtn, mood === m && styles.moodBtnActive]}
-                                            onPress={() => setMood(mood === m ? null : m)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Text style={styles.moodEmoji}>{m === 'happy' ? '😊' : m === 'neutral' ? '😐' : '😢'}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-
-                            <View style={styles.manualSelectorsRow}>
+                    {/* Selectors Container */}
+                    <View style={styles.manualControlsContainer}>
+                        {/* Mood Selector */}
+                        <View style={styles.moodSelector}>
+                            {(['happy', 'neutral', 'sad'] as const).map(m => (
                                 <TouchableOpacity 
-                                    style={[styles.manualSelectorPill, { borderColor: isExpense ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)' }]} 
-                                    onPress={() => { setIsAmountFocused(false); setShowCategoryModal(true); }}
-                                >
-                                    <Ionicons name={catIcon as any} size={14} color="#D1D5DB" />
-                                    <Text style={styles.manualSelectorText}>{catName}</Text>
-                                    <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
-                                </TouchableOpacity>
-
-                                <TouchableOpacity 
-                                    style={[styles.manualSelectorPill, { borderColor: isExpense ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)' }]} 
-                                    onPress={() => { setIsAmountFocused(false); setShowWalletModal(true); }}
-                                >
-                                    <Ionicons name="wallet" size={14} color="#D1D5DB" />
-                                    <Text style={styles.manualSelectorText}>{selectedWallet?.name || 'Wallet'}</Text>
-                                    <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Toggle Expense/Income Row */}
-                            <View style={styles.manualToggleRow}>
-                                <View style={styles.manualToggleContainer}>
-                                    <TouchableOpacity 
-                                        style={[styles.manualToggleBtn, isExpense && styles.manualToggleBtnActiveExpense]}
-                                        onPress={() => setType('EXPENSE')}
-                                    >
-                                        <Text style={[styles.manualToggleText, isExpense && { color: '#FFF' }]}>Chi tiêu</Text>
-                                        <Ionicons name="arrow-down-outline" size={16} color={isExpense ? "#FFF" : "#6B7280"} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        style={[styles.manualToggleBtn, !isExpense && styles.manualToggleBtnActiveIncome]}
-                                        onPress={() => setType('INCOME')}
-                                    >
-                                        <Text style={[styles.manualToggleText, !isExpense && { color: '#FFF' }]}>Thu nhập</Text>
-                                        <Ionicons name="arrow-up-outline" size={16} color={!isExpense ? "#FFF" : "#6B7280"} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            {/* Date Selector Row */}
-                            <View style={styles.manualDateRow}>
-                                <TouchableOpacity style={styles.manualSelectorPill} onPress={() => { setIsAmountFocused(false); setShowDatePicker(true); }}>
-                                    <Ionicons name="calendar" size={14} color="#D1D5DB" />
-                                    <Text style={styles.manualSelectorText}>{displayDate}</Text>
-                                    <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    )}
-
-                    <View style={{ flex: 1 }} />
-
-                    {/* Action Buttons or Numpad */}
-                    {isAmountFocused ? (
-                        <View style={styles.manualNumpadWrapper}>
-                            {isSaving ? (
-                                <ActivityIndicator size="large" color="#E87979" style={{ marginVertical: 40 }} />
-                            ) : (
-                                <CustomNumpad 
-                                    value={expression} 
-                                    onValueChange={setExpression} 
-                                    onSubmit={() => setIsAmountFocused(false)} 
-                                />
-                            )}
-                        </View>
-                    ) : (
-                        <View style={styles.actionButtonsRow}>
-                            <View style={styles.actionRoundBtnContainer}>
-                                <TouchableOpacity 
-                                    style={styles.actionRoundBtnCancel} 
-                                    onPress={() => {
-                                        if (imageUri) {
-                                            setImageUri(null);
-                                            setInputMode('camera_capture');
-                                        } else {
-                                            router.back();
-                                        }
-                                    }}
+                                    key={m} 
+                                    style={[styles.moodBtn, mood === m && styles.moodBtnActive]}
+                                    onPress={() => setMood(mood === m ? null : m)}
                                     activeOpacity={0.7}
                                 >
-                                    <Ionicons name="close" size={24} color="#9CA3AF" />
+                                    <Text style={styles.moodEmoji}>{m === 'happy' ? '😊' : m === 'neutral' ? '😐' : '😢'}</Text>
                                 </TouchableOpacity>
-                                <Text style={styles.actionRoundBtnText}>Hủy</Text>
-                            </View>
+                            ))}
+                        </View>
 
-                            <TouchableOpacity style={styles.actionSaveBtnOuter} onPress={handleSave} activeOpacity={0.8}>
-                                <View style={styles.actionSaveBtnInner}>
-                                    {isSaving ? (
-                                        <ActivityIndicator color="#FFF" />
-                                    ) : (
-                                        <Ionicons name="checkmark" size={32} color="#FFF" />
-                                    )}
-                                </View>
+                        <View style={styles.manualSelectorsRow}>
+                            <TouchableOpacity 
+                                style={[styles.manualSelectorPill, { borderColor: isExpense ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)' }]} 
+                                onPress={() => { Keyboard.dismiss(); setIsAmountFocused(false); setShowCategoryModal(true); }}
+                            >
+                                <Ionicons name={catIcon as any} size={14} color="#D1D5DB" />
+                                <Text style={styles.manualSelectorText}>{catName}</Text>
+                                <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
                             </TouchableOpacity>
-                            
-                            <View style={styles.actionRoundBtnContainer}>
-                                {/* Empty container to keep the Save button centered */}
+
+                            <TouchableOpacity 
+                                style={[styles.manualSelectorPill, { borderColor: isExpense ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)' }]} 
+                                onPress={() => { Keyboard.dismiss(); setIsAmountFocused(false); setShowWalletModal(true); }}
+                            >
+                                <Ionicons name="wallet" size={14} color="#D1D5DB" />
+                                <Text style={styles.manualSelectorText}>{selectedWallet?.name || 'Wallet'}</Text>
+                                <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Toggle Expense/Income Row */}
+                        <View style={styles.manualToggleRow}>
+                            <View style={styles.manualToggleContainer}>
+                                <TouchableOpacity 
+                                    style={[styles.manualToggleBtn, isExpense && styles.manualToggleBtnActiveExpense]}
+                                    onPress={() => setType('EXPENSE')}
+                                >
+                                    <Text style={[styles.manualToggleText, isExpense && { color: '#FFF' }]}>Chi tiêu</Text>
+                                    <Ionicons name="arrow-down-outline" size={16} color={isExpense ? "#FFF" : "#6B7280"} />
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={[styles.manualToggleBtn, !isExpense && styles.manualToggleBtnActiveIncome]}
+                                    onPress={() => setType('INCOME')}
+                                >
+                                    <Text style={[styles.manualToggleText, !isExpense && { color: '#FFF' }]}>Thu nhập</Text>
+                                    <Ionicons name="arrow-up-outline" size={16} color={!isExpense ? "#FFF" : "#6B7280"} />
+                                </TouchableOpacity>
                             </View>
                         </View>
-                    )}
+
+                        {/* Date Selector Row */}
+                        <View style={styles.manualDateRow}>
+                            <TouchableOpacity style={styles.manualSelectorPill} onPress={() => { setIsAmountFocused(false); setShowDatePicker(true); }}>
+                                <Ionicons name="calendar" size={14} color="#D1D5DB" />
+                                <Text style={styles.manualSelectorText}>{displayDate}</Text>
+                                <Ionicons name="chevron-down" size={12} color="#D1D5DB" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Action Buttons Row */}
+                    <View style={styles.actionButtonsRow}>
+                        <View style={styles.actionRoundBtnContainer}>
+                            <TouchableOpacity 
+                                style={styles.actionRoundBtnCancel} 
+                                onPress={() => {
+                                    if (imageUri) {
+                                        setImageUri(null);
+                                        setInputMode('camera_capture');
+                                    } else {
+                                        router.back();
+                                    }
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="close" size={24} color="#9CA3AF" />
+                            </TouchableOpacity>
+                            <Text style={styles.actionRoundBtnText}>Hủy</Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.actionSaveBtnOuter} onPress={handleSave} activeOpacity={0.8}>
+                            <View style={styles.actionSaveBtnInner}>
+                                {isSaving ? (
+                                    <ActivityIndicator color="#FFF" />
+                                ) : (
+                                    <Ionicons name="checkmark" size={32} color="#FFF" />
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                        
+                        <View style={styles.actionRoundBtnContainer}>
+                            {/* Empty container to keep the Save button centered */}
+                        </View>
+                    </View>
                 </View>
 
                 <Modal visible={showCategoryModal} animationType="slide" transparent={true}>
@@ -1059,8 +1065,9 @@ const styles = StyleSheet.create({
 
     // Manual input screen (New Redesign)
     manualContainer: { flex: 1, backgroundColor: '#111111' },
-    manualTopHalf: { flex: 1, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, paddingBottom: 24, paddingHorizontal: 20, overflow: 'hidden' },
-    manualBottomHalf: { flex: 1.2, backgroundColor: '#111111', paddingTop: 16, paddingHorizontal: 16 },
+    manualTopHalf: { flex: 1.1, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, paddingBottom: 20, paddingHorizontal: 20, overflow: 'hidden' },
+    manualBottomHalf: { flex: 1, backgroundColor: '#111111', paddingTop: 12, paddingHorizontal: 16, justifyContent: 'space-between', paddingBottom: 16 },
+    manualControlsContainer: { justifyContent: 'center', paddingTop: 4 },
     manualHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     manualHeaderIconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
     manualCameraBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
@@ -1070,24 +1077,24 @@ const styles = StyleSheet.create({
     manualAmountGlassCard: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)' },
     manualAmountRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
     manualAmountSign: { fontSize: 24, fontWeight: '700', color: '#EF4444', marginRight: 8, marginTop: 4 },
-    manualAmountValue: { fontSize: 44, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'] },
+    manualAmountValue: { flex: 1, fontSize: 44, fontWeight: '700', color: '#FFFFFF', fontVariant: ['tabular-nums'], textAlign: 'center', padding: 0 },
     manualAmountCurrency: { fontSize: 18, fontWeight: '700', color: '#D1D5DB', marginLeft: 8, marginTop: 12 },
     manualNoteInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.2)', borderRadius: 16, paddingHorizontal: 16, height: 44 },
     manualNoteInput: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '500' },
-    manualSelectorsRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 16 },
+    manualSelectorsRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14 },
     manualSelectorPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#374151', gap: 6 },
     manualSelectorText: { fontSize: 13, fontWeight: '700', color: '#D1D5DB' },
-    manualToggleRow: { alignItems: 'center', marginBottom: 16 },
+    manualToggleRow: { alignItems: 'center', marginBottom: 14 },
     manualToggleContainer: { flexDirection: 'row', backgroundColor: '#1F2937', borderRadius: 20, padding: 4, width: 200 },
     manualToggleBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     manualToggleText: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
     manualToggleBtnActiveExpense: { backgroundColor: '#EF4444' },
     manualToggleBtnActiveIncome: { backgroundColor: '#10B981' },
-    manualDateRow: { alignItems: 'center', marginBottom: 8 },
+    manualDateRow: { alignItems: 'center', marginBottom: 6 },
     manualNumpadWrapper: { marginTop: 'auto', marginBottom: 0, marginHorizontal: -16 },
     
     // Action Buttons
-    actionButtonsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 40, paddingBottom: 24, marginTop: 'auto' },
+    actionButtonsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 40, paddingBottom: 16, marginTop: 8 },
     actionRoundBtnContainer: { alignItems: 'center', justifyContent: 'flex-start', width: 64 },
     actionRoundBtnCancel: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#3F3F46' },
     actionRoundBtnText: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', textAlign: 'center' },

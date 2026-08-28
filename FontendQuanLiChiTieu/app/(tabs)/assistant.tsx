@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
     TextInput, FlatList, KeyboardAvoidingView, Platform,
-    ActivityIndicator, Image, Dimensions, StatusBar, Modal
+    ActivityIndicator, Image, Dimensions, StatusBar, Modal,
+    Keyboard
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,6 +58,23 @@ export default function AssistantScreen() {
     const [showLimitModal, setShowLimitModal] = useState(false);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [editFormData, setEditFormData] = useState<any>(null);
+    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+    useEffect(() => {
+        const showSubscription = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            () => setIsKeyboardVisible(true)
+        );
+        const hideSubscription = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            () => setIsKeyboardVisible(false)
+        );
+
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     const updateUsageStats = async (isPrem: boolean) => {
         const stats = await AiLimitService.getUsageStats(isPrem);
@@ -480,8 +498,8 @@ export default function AssistantScreen() {
 
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 0.6,
             base64: true,
         });
 
@@ -500,12 +518,12 @@ export default function AssistantScreen() {
     const handlePickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 0.6,
             base64: true,
         });
 
-        if (!result.canceled && result.assets[0].base64) {
+        if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].base64) {
             const asset = result.assets[0];
             const base64Data = asset.base64 as string;
             addMessage({
@@ -685,9 +703,9 @@ export default function AssistantScreen() {
             </View>
 
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.chatArea}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
                 {/* Daily limit usage banner for Free users */}
                 {user && !user.isPremium && (
@@ -722,7 +740,7 @@ export default function AssistantScreen() {
                 )}
 
                 {/* Redesigned Input Panel */}
-                <View style={[styles.inputContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom + 4 : 12 }]}>
+                <View style={[styles.inputContainer, { paddingBottom: isKeyboardVisible ? 6 : 8, paddingTop: 8 }]}>
                     <View style={styles.mediaActionsContainer}>
                         <TouchableOpacity style={styles.imageAttachBtn} onPress={handleTakeImage} activeOpacity={0.7}>
                             <Ionicons name="camera" size={20} color="#6366F1" />
@@ -907,7 +925,7 @@ export default function AssistantScreen() {
                                         horizontal
                                         showsHorizontalScrollIndicator={false}
                                         data={categories.filter(c => c.type === editFormData.type)}
-                                        keyExtractor={item => item.id}
+                                        keyExtractor={item => String(item.id)}
                                         style={{ marginTop: 8 }}
                                         renderItem={({ item }) => (
                                             <TouchableOpacity 
@@ -927,7 +945,7 @@ export default function AssistantScreen() {
                                         horizontal
                                         showsHorizontalScrollIndicator={false}
                                         data={wallets}
-                                        keyExtractor={item => item.id}
+                                        keyExtractor={item => String(item.id)}
                                         renderItem={({ item }) => (
                                             <TouchableOpacity 
                                                 style={[styles.editPill, editFormData.walletId === item.id && { backgroundColor: '#EEF2FF', borderColor: '#6366F1' }]}

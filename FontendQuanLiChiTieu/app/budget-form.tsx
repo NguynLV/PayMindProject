@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
-    TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, useWindowDimensions, StatusBar, Dimensions
+    TextInput, ActivityIndicator, Platform, ScrollView, useWindowDimensions, StatusBar, Dimensions
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -23,6 +24,7 @@ const formatNumber = (n: string) => {
 export default function BudgetFormScreen() {
     const router = useRouter();
     const toast = useToast();
+    const insets = useSafeAreaInsets();
     const params = useLocalSearchParams();
     const isEdit = !!params.id;
 
@@ -38,45 +40,46 @@ export default function BudgetFormScreen() {
     const [isNameFocused, setIsNameFocused] = useState(false);
     const [isAmountFocused, setIsAmountFocused] = useState(false);
 
+    const isInitializedRef = React.useRef(false);
+
     useFocusEffect(
         React.useCallback(() => {
-            if (isEdit) {
-                setName(params.name?.toString() || '');
-                setAmount(params.amount?.toString() || '');
-                setCategoryId(params.categoryId ? Number(params.categoryId) : undefined);
+            if (!isInitializedRef.current) {
+                if (isEdit) {
+                    setName(params.name?.toString() || '');
+                    setAmount(params.amount?.toString() || '');
+                    setCategoryId(params.categoryId ? Number(params.categoryId) : undefined);
 
-                const rawPeriod = (params.period as string)?.toLowerCase();
-                let p: 'Monthly' | 'Weekly' | 'Daily' = 'Monthly';
-                if (rawPeriod === 'weekly') p = 'Weekly';
-                else if (rawPeriod === 'daily') p = 'Daily';
+                    const rawPeriod = (params.period as string)?.toLowerCase();
+                    let p: 'Monthly' | 'Weekly' | 'Daily' = 'Monthly';
+                    if (rawPeriod === 'weekly') p = 'Weekly';
+                    else if (rawPeriod === 'daily') p = 'Daily';
 
-                setPeriod(p);
+                    setPeriod(p);
 
-                if (p === 'Daily' && params.periodValue && params.year) {
-                    const d = new Date();
-                    d.setFullYear(Number(params.year));
-                    d.setDate(Number(params.periodValue));
-                    setDate(d);
+                    if (p === 'Daily' && params.periodValue && params.year) {
+                        const d = new Date();
+                        d.setFullYear(Number(params.year));
+                        d.setDate(Number(params.periodValue));
+                        setDate(d);
+                    }
+                } else if (params.name || params.amount || params.categoryId) {
+                    setName(params.name?.toString() || '');
+                    setAmount(params.amount?.toString() || '');
+                    setCategoryId(params.categoryId ? Number(params.categoryId) : undefined);
+                    
+                    const rawPeriod = (params.period as string)?.toLowerCase();
+                    if (rawPeriod === 'weekly') setPeriod('Weekly');
+                    else if (rawPeriod === 'daily') setPeriod('Daily');
+                    else setPeriod('Monthly');
+                    
+                    setDate(new Date());
                 }
-            } else if (params.name || params.amount || params.categoryId) {
-                setName(params.name?.toString() || '');
-                setAmount(params.amount?.toString() || '');
-                setCategoryId(params.categoryId ? Number(params.categoryId) : undefined);
-                
-                const rawPeriod = (params.period as string)?.toLowerCase();
-                if (rawPeriod === 'weekly') setPeriod('Weekly');
-                else if (rawPeriod === 'daily') setPeriod('Daily');
-                else setPeriod('Monthly');
-                
-                setDate(new Date());
-            } else {
-                setName('');
-                setAmount('');
-                setCategoryId(undefined);
-                setPeriod('Monthly');
-                setDate(new Date());
+                isInitializedRef.current = true;
             }
-        }, [params.id, params.name, params.amount, params.categoryId, params.period, params.periodValue, params.year])
+
+            loadCategories();
+        }, [isEdit, params.name, params.amount, params.categoryId, params.period, params.periodValue, params.year])
     );
 
     const [categories, setCategories] = useState<CategoryResponse[]>([]);
@@ -92,16 +95,19 @@ export default function BudgetFormScreen() {
         { label: 'Mức cao', amount: 3000000, badge: 'Thoải mái', badgeIcon: 'star-outline' as const, badgeColor: '#F59E0B', bg: '#FFFBEB' },
     ];
 
-    useFocusEffect(
-        useCallback(() => {
-            loadCategories();
-        }, [])
-    );
-
     const loadCategories = async () => {
         try {
             const expenseCats = await CategoryService.getMyCategories('EXPENSE');
-            setCategories(expenseCats);
+            setCategories(prev => {
+                if (prev.length > 0 && expenseCats.length > prev.length) {
+                    const newCat = expenseCats.find(c => !prev.some(p => p.id === c.id));
+                    if (newCat) {
+                        setCategoryId(newCat.id);
+                        toast.success('Đã chọn danh mục mới', `Đã tự động chọn "${newCat.name}" cho ngân sách.`);
+                    }
+                }
+                return expenseCats;
+            });
         } catch (error) {
             console.warn('Failed to load categories', error);
         }
@@ -203,220 +209,219 @@ export default function BudgetFormScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                contentContainerStyle={[styles.formContainer, { paddingBottom: Math.max(insets.bottom + 24, 36) }]} 
+                keyboardShouldPersistTaps="handled" 
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Budget Name */}
+                <View style={[styles.card, isNameFocused && styles.cardFocused]}>
+                    <Text style={styles.cardLabel}>Tên ngân sách</Text>
+                    <View style={styles.inputRow}>
+                        <Ionicons name="document-text-outline" size={20} color={isNameFocused ? '#6366F1' : '#9CA3AF'} style={{ marginRight: 10 }} />
+                        <TextInput
+                            style={styles.nameInput}
+                            placeholder="Ví dụ: Ăn uống tháng 6, Mua sắm quần áo..."
+                            placeholderTextColor="#9CA3AF"
+                            value={name}
+                            onChangeText={setName}
+                            maxLength={100}
+                            onFocus={() => setIsNameFocused(true)}
+                            onBlur={() => setIsNameFocused(false)}
+                        />
+                    </View>
+                </View>
 
-                    {/* Budget Name */}
-                    <View style={[styles.card, isNameFocused && styles.cardFocused]}>
-                        <Text style={styles.cardLabel}>Tên ngân sách</Text>
-                        <View style={styles.inputRow}>
-                            <Ionicons name="document-text-outline" size={20} color={isNameFocused ? '#6366F1' : '#9CA3AF'} style={{ marginRight: 10 }} />
-                            <TextInput
-                                style={styles.nameInput}
-                                placeholder="Ví dụ: Ăn uống tháng 6, Mua sắm quần áo..."
-                                placeholderTextColor="#9CA3AF"
-                                value={name}
-                                onChangeText={setName}
-                                maxLength={100}
-                                onFocus={() => setIsNameFocused(true)}
-                                onBlur={() => setIsNameFocused(false)}
-                            />
-                        </View>
+                {/* Amount */}
+                <View style={[styles.card, isAmountFocused && styles.cardFocused]}>
+                    <Text style={styles.cardLabel}>Hạn mức tối đa</Text>
+                    <View style={styles.amountRow}>
+                        <Text style={[styles.currencySymbol, (amount || isAmountFocused) && { color: '#6366F1' }]}>₫</Text>
+                        <TextInput
+                            style={[styles.amountInput, (amount || isAmountFocused) && { color: '#6366F1' }]}
+                            placeholder="0"
+                            placeholderTextColor="#D1D5DB"
+                            value={amount ? formatNumber(amount) : ''}
+                            onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+                            keyboardType="numeric"
+                            onFocus={() => setIsAmountFocused(true)}
+                            onBlur={() => setIsAmountFocused(false)}
+                        />
                     </View>
 
-                    {/* Amount */}
-                    <View style={[styles.card, isAmountFocused && styles.cardFocused]}>
-                        <Text style={styles.cardLabel}>Hạn mức tối đa</Text>
-                        <View style={styles.amountRow}>
-                            <Text style={[styles.currencySymbol, (amount || isAmountFocused) && { color: '#6366F1' }]}>₫</Text>
-                            <TextInput
-                                style={[styles.amountInput, (amount || isAmountFocused) && { color: '#6366F1' }]}
-                                placeholder="0"
-                                placeholderTextColor="#D1D5DB"
-                                value={amount ? formatNumber(amount) : ''}
-                                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
-                                keyboardType="numeric"
-                                onFocus={() => setIsAmountFocused(true)}
-                                onBlur={() => setIsAmountFocused(false)}
-                            />
-                        </View>
-
-                        {/* Smart Suggestions */}
-                        <View style={styles.suggestHeader}>
-                            <Ionicons name="sparkles" size={14} color="#6366F1" />
-                            <Text style={styles.suggestTitle}>Gợi ý hạn mức nhanh</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-                            {smartSuggestions.map((s, i) => (
-                                <TouchableOpacity
-                                    key={i}
-                                    style={[styles.suggestionCard, { backgroundColor: s.bg }]}
-                                    onPress={() => setAmount(String(s.amount))}
-                                    activeOpacity={0.85}
-                                >
-                                    <Text style={styles.suggestSubLabel}>{s.label}</Text>
-                                    <Text style={styles.suggestAmount}>{new Intl.NumberFormat('vi-VN').format(s.amount)} ₫</Text>
-                                    <View style={styles.suggestBadge}>
-                                        <Ionicons name={s.badgeIcon} size={11} color={s.badgeColor} />
-                                        <Text style={[styles.suggestBadgeText, { color: s.badgeColor }]}> {s.badge}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
+                    {/* Smart Suggestions */}
+                    <View style={styles.suggestHeader}>
+                        <Ionicons name="sparkles" size={14} color="#6366F1" />
+                        <Text style={styles.suggestTitle}>Gợi ý hạn mức nhanh</Text>
                     </View>
-
-                    {/* Period Toggle */}
-                    <Text style={styles.sectionLabel}>Tần suất lặp lại</Text>
-                    <View style={styles.periodRow}>
-                        <TouchableOpacity
-                            style={[styles.periodBtn, period === 'Monthly' && styles.periodBtnActive]}
-                            onPress={() => setPeriod('Monthly')}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="calendar-outline" size={16} color={period === 'Monthly' ? '#6366F1' : '#6B7280'} />
-                            <Text style={[styles.periodBtnText, period === 'Monthly' && styles.periodBtnTextActive]}>Hàng tháng</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.periodBtn, period === 'Weekly' && styles.periodBtnActive]}
-                            onPress={() => setPeriod('Weekly')}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="git-commit-outline" size={16} color={period === 'Weekly' ? '#6366F1' : '#6B7280'} />
-                            <Text style={[styles.periodBtnText, period === 'Weekly' && styles.periodBtnTextActive]}>Hàng tuần</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.periodBtn, period === 'Daily' && styles.periodBtnActive]}
-                            onPress={() => setPeriod('Daily')}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="today-outline" size={16} color={period === 'Daily' ? '#6366F1' : '#6B7280'} />
-                            <Text style={[styles.periodBtnText, period === 'Daily' && styles.periodBtnTextActive]}>Một ngày</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Date Picker for Daily Period */}
-                    {period === 'Daily' && (
-                        <View style={styles.card}>
-                            <Text style={styles.cardLabel}>Ngày hiệu lực hạn mức</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                        {smartSuggestions.map((s, i) => (
                             <TouchableOpacity
-                                style={styles.dateSelector}
-                                onPress={() => setShowDatePicker(true)}
-                                activeOpacity={0.6}
+                                key={i}
+                                style={[styles.suggestionCard, { backgroundColor: s.bg }]}
+                                onPress={() => setAmount(String(s.amount))}
+                                activeOpacity={0.85}
                             >
-                                <Ionicons name="calendar-outline" size={20} color="#6366F1" style={{ marginRight: 10 }} />
-                                <Text style={styles.dateValue}>{formatDate(date)}</Text>
-                                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                                <Text style={styles.suggestSubLabel}>{s.label}</Text>
+                                <Text style={styles.suggestAmount}>{new Intl.NumberFormat('vi-VN').format(s.amount)} ₫</Text>
+                                <View style={styles.suggestBadge}>
+                                    <Ionicons name={s.badgeIcon} size={11} color={s.badgeColor} />
+                                    <Text style={[styles.suggestBadgeText, { color: s.badgeColor }]}> {s.badge}</Text>
+                                </View>
                             </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Period Toggle */}
+                <Text style={styles.sectionLabel}>Tần suất lặp lại</Text>
+                <View style={styles.periodRow}>
+                    <TouchableOpacity
+                        style={[styles.periodBtn, period === 'Monthly' && styles.periodBtnActive]}
+                        onPress={() => setPeriod('Monthly')}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="calendar-outline" size={16} color={period === 'Monthly' ? '#6366F1' : '#6B7280'} />
+                        <Text style={[styles.periodBtnText, period === 'Monthly' && styles.periodBtnTextActive]}>Hàng tháng</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.periodBtn, period === 'Weekly' && styles.periodBtnActive]}
+                        onPress={() => setPeriod('Weekly')}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="git-commit-outline" size={16} color={period === 'Weekly' ? '#6366F1' : '#6B7280'} />
+                        <Text style={[styles.periodBtnText, period === 'Weekly' && styles.periodBtnTextActive]}>Hàng tuần</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.periodBtn, period === 'Daily' && styles.periodBtnActive]}
+                        onPress={() => setPeriod('Daily')}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="today-outline" size={16} color={period === 'Daily' ? '#6366F1' : '#6B7280'} />
+                        <Text style={[styles.periodBtnText, period === 'Daily' && styles.periodBtnTextActive]}>Một ngày</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Date Picker for Daily Period */}
+                {period === 'Daily' && (
+                    <View style={styles.card}>
+                        <Text style={styles.cardLabel}>Ngày hiệu lực hạn mức</Text>
+                        <TouchableOpacity
+                            style={styles.dateSelector}
+                            onPress={() => setShowDatePicker(true)}
+                            activeOpacity={0.6}
+                        >
+                            <Ionicons name="calendar-outline" size={20} color="#6366F1" style={{ marginRight: 10 }} />
+                            <Text style={styles.dateValue}>{formatDate(date)}</Text>
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                <CustomDatePicker
+                    visible={showDatePicker}
+                    onClose={() => setShowDatePicker(false)}
+                    initialDate={date}
+                    onSelect={(selectedDate) => {
+                        setDate(selectedDate);
+                    }}
+                />
+
+                {/* Category Grid */}
+                <Text style={styles.sectionLabel}>Áp dụng cho danh mục nào?</Text>
+                <View>
+                    <ScrollView
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        onScroll={(e) => {
+                            const offset = e.nativeEvent.contentOffset.x;
+                            const width = e.nativeEvent.layoutMeasurement.width;
+                            setCurrentCategoryPage(Math.round(offset / width));
+                        }}
+                        scrollEventThrottle={16}
+                        style={{ marginHorizontal: -16 }}
+                    >
+                        {(() => {
+                            const items = [
+                                { type: 'all' as const, data: null },
+                                ...categories.map(cat => ({ type: 'category' as const, data: cat })),
+                                { type: 'add' as const, data: null }
+                            ];
+                            const pages: any[][] = [];
+                            for (let i = 0; i < items.length; i += 8) {
+                                pages.push(items.slice(i, i + 8));
+                            }
+
+                            return pages.map((page, pageIndex) => (
+                                <View key={pageIndex} style={{ width: windowWidth - 32, paddingHorizontal: 16 }}>
+                                    <View style={styles.catGrid}>
+                                        {page.map((item, idx) => {
+                                            if (item.type === 'category') {
+                                                return renderCategoryIcon(item.data);
+                                            } else if (item.type === 'all') {
+                                                const isAllSelected = categoryId === undefined;
+                                                return (
+                                                    <TouchableOpacity key="all-cat" style={styles.catItem} onPress={() => setCategoryId(undefined)} activeOpacity={0.8}>
+                                                        <View style={[
+                                                            styles.catCircle,
+                                                            { backgroundColor: isAllSelected ? '#6366F115' : '#F8FAFC' },
+                                                            isAllSelected ? { borderColor: '#6366F1', borderWidth: 2 } : { borderColor: '#E2E8F0', borderWidth: 1 }
+                                                        ]}>
+                                                            <Ionicons
+                                                                name="grid-outline"
+                                                                size={22}
+                                                                color={isAllSelected ? '#6366F1' : '#6B7280'}
+                                                            />
+                                                            {isAllSelected && (
+                                                                <View style={[styles.checkBadge, { backgroundColor: '#6366F1' }]}>
+                                                                    <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                                                                </View>
+                                                            )}
+                                                        </View>
+                                                        <Text style={[styles.catLabel, isAllSelected && { color: '#6366F1', fontWeight: '700' }]}>Tất cả</Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            } else {
+                                                return (
+                                                    <TouchableOpacity
+                                                        key="add-cat-btn"
+                                                        style={styles.catItem}
+                                                        onPress={() => router.push('/category-form?type=EXPENSE' as any)}
+                                                        activeOpacity={0.8}
+                                                    >
+                                                        <View style={[styles.catCircle, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderStyle: 'dashed' }]}>
+                                                            <Ionicons name="add" size={22} color="#6B7280" />
+                                                        </View>
+                                                        <Text style={styles.catLabel} numberOfLines={1}>Thêm mới</Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            }
+                                        })}
+                                    </View>
+                                </View>
+                            ));
+                        })()}
+                    </ScrollView>
+
+                    {/* Pagination Dots */}
+                    {(categories.length + 2) > 8 && (
+                        <View style={styles.paginationDots}>
+                            {Array.from({ length: Math.ceil((categories.length + 2) / 8) }).map((_, i) => (
+                                <View
+                                    key={i}
+                                    style={[
+                                        styles.dot,
+                                        currentCategoryPage === i && styles.dotActive
+                                    ]}
+                                />
+                            ))}
                         </View>
                     )}
-
-                    <CustomDatePicker
-                        visible={showDatePicker}
-                        onClose={() => setShowDatePicker(false)}
-                        initialDate={date}
-                        onSelect={(selectedDate) => {
-                            setDate(selectedDate);
-                        }}
-                    />
-
-                    {/* Category Grid */}
-                    <Text style={styles.sectionLabel}>Áp dụng cho danh mục nào?</Text>
-                    <View>
-                        <ScrollView
-                            horizontal
-                            pagingEnabled
-                            showsHorizontalScrollIndicator={false}
-                            onScroll={(e) => {
-                                const offset = e.nativeEvent.contentOffset.x;
-                                const width = e.nativeEvent.layoutMeasurement.width;
-                                setCurrentCategoryPage(Math.round(offset / width));
-                            }}
-                            scrollEventThrottle={16}
-                            style={{ marginHorizontal: -16 }}
-                        >
-                            {(() => {
-                                const items = [
-                                    { type: 'all' as const, data: null },
-                                    ...categories.map(cat => ({ type: 'category' as const, data: cat })),
-                                    { type: 'add' as const, data: null }
-                                ];
-                                const pages: any[][] = [];
-                                for (let i = 0; i < items.length; i += 8) {
-                                    pages.push(items.slice(i, i + 8));
-                                }
-
-                                return pages.map((page, pageIndex) => (
-                                    <View key={pageIndex} style={{ width: windowWidth - 32, paddingHorizontal: 16 }}>
-                                        <View style={styles.catGrid}>
-                                            {page.map((item, idx) => {
-                                                if (item.type === 'category') {
-                                                    return renderCategoryIcon(item.data);
-                                                } else if (item.type === 'all') {
-                                                    const isAllSelected = categoryId === undefined;
-                                                    return (
-                                                        <TouchableOpacity key="all-cat" style={styles.catItem} onPress={() => setCategoryId(undefined)} activeOpacity={0.8}>
-                                                            <View style={[
-                                                                styles.catCircle,
-                                                                { backgroundColor: isAllSelected ? '#6366F115' : '#F8FAFC' },
-                                                                isAllSelected ? { borderColor: '#6366F1', borderWidth: 2 } : { borderColor: '#E2E8F0', borderWidth: 1 }
-                                                            ]}>
-                                                                <Ionicons
-                                                                    name="grid-outline"
-                                                                    size={22}
-                                                                    color={isAllSelected ? '#6366F1' : '#6B7280'}
-                                                                />
-                                                                {isAllSelected && (
-                                                                    <View style={[styles.checkBadge, { backgroundColor: '#6366F1' }]}>
-                                                                        <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                                                                    </View>
-                                                                )}
-                                                            </View>
-                                                            <Text style={[styles.catLabel, isAllSelected && { color: '#6366F1', fontWeight: '700' }]}>Tất cả</Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                } else {
-                                                    return (
-                                                        <TouchableOpacity
-                                                            key="add-cat-btn"
-                                                            style={styles.catItem}
-                                                            onPress={() => router.push('/category-form?type=EXPENSE' as any)}
-                                                            activeOpacity={0.8}
-                                                        >
-                                                            <View style={[styles.catCircle, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderStyle: 'dashed' }]}>
-                                                                <Ionicons name="add" size={22} color="#6B7280" />
-                                                            </View>
-                                                            <Text style={styles.catLabel} numberOfLines={1}>Thêm mới</Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                }
-                                            })}
-                                        </View>
-                                    </View>
-                                ));
-                            })()}
-                        </ScrollView>
-
-                        {/* Pagination Dots */}
-                        {(categories.length + 2) > 8 && (
-                            <View style={styles.paginationDots}>
-                                {Array.from({ length: Math.ceil((categories.length + 2) / 8) }).map((_, i) => (
-                                    <View
-                                        key={i}
-                                        style={[
-                                            styles.dot,
-                                            currentCategoryPage === i && styles.dotActive
-                                        ]}
-                                    />
-                                ))}
-                            </View>
-                        )}
-                    </View>
-
-                    <View style={{ height: 100 }} />
-                </ScrollView>
+                </View>
 
                 {/* Footer Button */}
-                <View style={styles.footer}>
+                <View style={styles.footerContainer}>
                     <TouchableOpacity
                         style={[styles.saveBtn, (!name.trim() || !amount) && styles.saveBtnDisabled]}
                         onPress={handleSave}
@@ -433,7 +438,7 @@ export default function BudgetFormScreen() {
                         )}
                     </TouchableOpacity>
                 </View>
-            </KeyboardAvoidingView>
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -481,7 +486,7 @@ const styles = StyleSheet.create({
     checkBadge: { position: 'absolute', top: -2, right: -2, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFFFFF' },
     catLabel: { fontSize: 11, color: '#6B7280', textAlign: 'center', fontWeight: '500' },
 
-    footer: { paddingHorizontal: 16, paddingBottom: Platform.OS === 'ios' ? 30 : 16, backgroundColor: '#F8FAFC' },
+    footerContainer: { marginTop: 24, marginBottom: 12 },
     saveBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
     saveBtnDisabled: { backgroundColor: '#A5B4FC', shadowOpacity: 0 },
     saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, Platform, ScrollView, Switch, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -18,12 +19,15 @@ const formatNumber = (n: string) => {
 
 export default function RecurringFormScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
     const toast = useToast();
+    const insets = useSafeAreaInsets();
+    const params = useLocalSearchParams();
     const isEdit = !!params.id;
 
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
+    const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
+    const [isAmountFocused, setIsAmountFocused] = useState(false);
     const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
     const [cycle, setCycle] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('MONTHLY');
     const [nextRunDate, setNextRunDate] = useState(new Date());
@@ -193,8 +197,11 @@ export default function RecurringFormScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                contentContainerStyle={[styles.formContainer, { paddingBottom: Math.max(insets.bottom + 20, 32) }]} 
+                keyboardShouldPersistTaps="handled" 
+                showsVerticalScrollIndicator={false}
+            >
                     
                     {/* Brand Presets List */}
                     {!isEdit && type === 'EXPENSE' && (
@@ -239,10 +246,10 @@ export default function RecurringFormScreen() {
                     </View>
 
                     {/* Description card */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, isDescriptionFocused && styles.cardFocused]}>
                         <Text style={styles.cardLabel}>Tên dịch vụ / Nguồn tiền định kỳ</Text>
                         <View style={styles.inputRow}>
-                            <Ionicons name="document-text-outline" size={18} color="#7C3AED" style={styles.inputIcon} />
+                            <Ionicons name="document-text-outline" size={18} color={isDescriptionFocused ? "#6366F1" : "#7C3AED"} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.textInput}
                                 placeholder="Ví dụ: Netflix, Spotify, Lương hàng tháng..."
@@ -250,22 +257,28 @@ export default function RecurringFormScreen() {
                                 value={description}
                                 onChangeText={setDescription}
                                 maxLength={100}
+                                returnKeyType="done"
+                                onFocus={() => setIsDescriptionFocused(true)}
+                                onBlur={() => setIsDescriptionFocused(false)}
                             />
                         </View>
                     </View>
 
                     {/* Amount card */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, isAmountFocused && styles.cardFocused]}>
                         <Text style={styles.cardLabel}>Số tiền một chu kỳ</Text>
                         <View style={styles.amountRow}>
-                            <Text style={styles.currencySymbol}>đ</Text>
+                            <Text style={[styles.currencySymbol, (amount || isAmountFocused) && { color: '#6366F1' }]}>đ</Text>
                             <TextInput
-                                style={styles.amountInput}
+                                style={[styles.amountInput, (amount || isAmountFocused) && { color: '#6366F1' }]}
                                 placeholder="0"
-                                placeholderTextColor="#7C3AED"
+                                placeholderTextColor="#9CA3AF"
                                 value={amount ? formatNumber(amount) : ''}
                                 onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
                                 keyboardType="numeric"
+                                returnKeyType="done"
+                                onFocus={() => setIsAmountFocused(true)}
+                                onBlur={() => setIsAmountFocused(false)}
                             />
                         </View>
                     </View>
@@ -378,28 +391,25 @@ export default function RecurringFormScreen() {
                         />
                     </View>
 
-                    <View style={{ height: 100 }} />
+                    {/* Footer Save Button */}
+                    <View style={styles.footerContainer}>
+                        <TouchableOpacity
+                            style={[styles.saveBtn, (!description.trim() || !amount) && styles.saveBtnDisabled]}
+                            onPress={handleSave}
+                            disabled={!description.trim() || !amount || loading}
+                            activeOpacity={0.85}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={styles.saveBtnText}>{isEdit ? 'Cập nhật giao dịch' : 'Kích hoạt giao dịch'}</Text>
+                                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </ScrollView>
-
-                {/* Footer Save Button */}
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[styles.saveBtn, (!description.trim() || !amount) && styles.saveBtnDisabled]}
-                        onPress={handleSave}
-                        disabled={!description.trim() || !amount || loading}
-                        activeOpacity={0.85}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.saveBtnText}>{isEdit ? 'Cập nhật giao dịch' : 'Kích hoạt giao dịch'}</Text>
-                                <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginLeft: 8 }} />
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -429,38 +439,39 @@ const styles = StyleSheet.create({
     incomeBtnActive: { backgroundColor: '#D1FAE5', borderColor: '#10B981' },
     incomeBtnTextActive: { color: '#065F46' },
     
-    card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1, borderWidth: 1, borderColor: '#F3F4F6' },
+    card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1, borderWidth: 1.5, borderColor: '#F3F4F6' },
+    cardFocused: { borderColor: '#6366F1', backgroundColor: '#FAFAFF' },
     cardLabel: { fontSize: 12, fontWeight: '700', color: '#6B7280', marginBottom: 10 },
     inputRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 8 },
     inputIcon: { marginRight: 8 },
     textInput: { flex: 1, fontSize: 15, color: '#111827', padding: 0 },
     
     amountRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4 },
-    currencySymbol: { fontSize: 28, fontWeight: '700', color: '#7C3AED', marginRight: 6 },
-    amountInput: { flex: 1, fontSize: 32, fontWeight: '700', color: '#7C3AED', paddingVertical: 0 },
+    currencySymbol: { fontSize: 28, fontWeight: '700', color: '#6366F1', marginRight: 6 },
+    amountInput: { flex: 1, fontSize: 32, fontWeight: '700', color: '#6366F1', paddingVertical: 0 },
     
     cycleContainer: { flexDirection: 'row', gap: 8, marginBottom: 16 },
     cycleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' },
-    cycleBtnActive: { borderColor: '#7C3AED', backgroundColor: '#F5F3FF' },
+    cycleBtnActive: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
     cycleLabel: { fontSize: 11, fontWeight: '600', color: '#4B5563' },
-    cycleLabelActive: { color: '#7C3AED', fontWeight: '700' },
+    cycleLabelActive: { color: '#6366F1', fontWeight: '700' },
     
     dateSelector: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
     dateValue: { flex: 1, fontSize: 15, color: '#111827', fontWeight: '600' },
     
     selectorScroll: { gap: 10, paddingVertical: 2 },
     selectorItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
-    selectorItemActive: { borderColor: '#7C3AED', backgroundColor: '#F5F3FF' },
+    selectorItemActive: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
     selectorText: { fontSize: 12, color: '#4B5563' },
-    selectorTextActive: { color: '#7C3AED', fontWeight: '700' },
+    selectorTextActive: { color: '#6366F1', fontWeight: '700' },
     
     toggleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     toggleInfo: { flex: 1, marginRight: 16 },
     toggleTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 2 },
     toggleDesc: { fontSize: 11, color: '#6B7280' },
     
-    footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-    saveBtn: { backgroundColor: '#7C3AED', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-    saveBtnDisabled: { backgroundColor: '#C4B5FD', shadowOpacity: 0 },
+    footerContainer: { marginTop: 12, marginBottom: 16 },
+    saveBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
+    saveBtnDisabled: { backgroundColor: '#A5B4FC', shadowOpacity: 0 },
     saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }
 });

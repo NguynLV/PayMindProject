@@ -6,8 +6,10 @@ import { Platform } from 'react-native';
 // Nếu đang code/test (Development) -> dùng IP Local
 // Nếu đã build app cho người dùng (Production) -> dùng server Render
 const BASE_URL = __DEV__ 
-    ? 'http://192.168.1.80:8080/QuanLiChiTieu'  // Local IP để test
-    : 'https://paymindserver.onrender.com/QuanLiChiTieu'; // Server thật cho User
+      //? 'http://10.64.171.204:8080/QuanLiChiTieu'  // Local IP (Wi-Fi mới) để test
+     // ? 'http://192.168.1.22:8080/QuanLiChiTieu'  // Local IP (Cũ) để test
+        ? 'http://172.20.10.4:8080/QuanLiChiTieu' // mạng điện thoại di động
+         : 'https://paymindserver.onrender.com/QuanLiChiTieu'; // Server thật cho User
 
 export const TOKEN_KEY = 'auth_token';
 

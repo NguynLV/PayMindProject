@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import diaryService, { DiaryEntry } from '@/services/diary.service';
+import { getFullImageUrl } from '@/services/api';
 import { useToast } from '@/components/common/Toast';
 
 const COLORS = {
@@ -167,6 +168,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
   deleteBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF0F0', justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
   image: { width: '100%', height: 280 },
   contentCard: { margin: 16, backgroundColor: COLORS.card, borderRadius: 20, padding: 18, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6 },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },

@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Platform, StatusBar } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle, Line, Text as SvgText, G, Rect } from 'react-native-svg';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { ReportService, ReportSummaryResponse, DailyStat, YearlyReportResponse, CategoryStat } from '../src/services/report.service';
@@ -25,6 +26,7 @@ const formatMillions = (n: number) => {
 export default function ReportScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const insets = useSafeAreaInsets();
     
     const [loading, setLoading] = useState(true);
     
@@ -42,6 +44,67 @@ export default function ReportScreen() {
     const [drilldownTransactions, setDrilldownTransactions] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<{id: number, name: string} | null>(null);
     const [loadingDrilldown, setLoadingDrilldown] = useState(false);
+    const insightsCacheRef = useRef<Record<string, string[]>>({});
+
+    const fetchAIInsights = async (m: number, y: number, summaryData?: ReportSummaryResponse | null) => {
+        const cacheKey = `${m}-${y}`;
+        if (insightsCacheRef.current[cacheKey]) {
+            setAiInsights(insightsCacheRef.current[cacheKey]);
+            return;
+        }
+
+        try {
+            setLoadingAI(true);
+            const data = summaryData || await ReportService.getMonthlySummary(m, y);
+            if (data) {
+                let list: string[] = [];
+                const aiResult: any = await AiService.getReportInsight(data, m, y).catch(() => null);
+
+                if (aiResult && Array.isArray(aiResult.insights) && aiResult.insights.length > 0) {
+                    list = [...aiResult.insights];
+                } else if (aiResult && aiResult.savingTip) {
+                    list.push(`Mẹo tiết kiệm: ${aiResult.savingTip}`);
+                }
+
+                // Fallback smart insights if Gemini returns empty array or error
+                if (list.length === 0) {
+                    const inc = data.totalIncome || 0;
+                    const exp = data.totalExpense || 0;
+                    const net = inc - exp;
+                    if (exp > 0 && inc === 0) {
+                        list.push(`Tháng ${m}/${y}: Tổng chi tiêu ${formatVND(exp)}, chưa ghi nhận khoản thu nhập nào.`);
+                        list.push(`Khuyên dùng: Nên bổ sung thông tin nguồn thu nhập để hệ thống phân tích tỷ lệ tích lũy chính xác hơn.`);
+                    } else if (inc > 0) {
+                        const rate = Math.round((net / inc) * 100);
+                        list.push(`Tỷ lệ tích lũy tháng ${m}/${y} đạt ${rate}%. (Thu: ${formatVND(inc)}, Chi: ${formatVND(exp)})`);
+                        if (rate < 10) {
+                            list.push(`Cảnh báo: Tỷ lệ tiết kiệm đang ở mức thấp (<10%). Hãy rà soát lại các danh mục chi tiêu lớn.`);
+                        } else {
+                            list.push(`Duy trì phong độ quản lý tài chính tốt cho các tháng tiếp theo nhé!`);
+                        }
+                    } else {
+                        list.push(`Chưa có dữ liệu giao dịch thu/chi trong tháng ${m}/${y}.`);
+                    }
+                }
+
+                insightsCacheRef.current[cacheKey] = list;
+                setAiInsights(list);
+            }
+        } catch (err) {
+            console.warn('AI Insight fetch failed', err);
+            if (summaryData) {
+                const exp = summaryData.totalExpense || 0;
+                const inc = summaryData.totalIncome || 0;
+                const fallbackList = [
+                    `Tổng chi tiêu tháng ${m}/${y}: ${formatVND(exp)}.`,
+                    inc > 0 ? `Tổng thu nhập: ${formatVND(inc)}.` : `Chưa có ghi nhận thu nhập trong tháng này.`
+                ];
+                setAiInsights(fallbackList);
+            }
+        } finally {
+            setLoadingAI(false);
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -53,35 +116,15 @@ export default function ReportScreen() {
                 ]);
                 setReportData(data);
                 setDailyStats(daily);
+                fetchAIInsights(month, year, data);
             } else {
                 const data = await ReportService.getYearlySummary(year);
                 setYearlyData(data);
-            }
-
-            if (viewMode === 'monthly') {
-                fetchAIInsights(month, year);
             }
         } catch (error) {
             console.warn('Failed to load report', error);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchAIInsights = async (m: number, y: number) => {
-        try {
-            setLoadingAI(true);
-            const data = await ReportService.getMonthlySummary(m, y);
-            if (data && (data.totalIncome > 0 || data.totalExpense > 0)) {
-                const aiResult = await AiService.getReportInsight(data, m, y);
-                if (aiResult && aiResult.insights) {
-                    setAiInsights(aiResult.insights);
-                }
-            }
-        } catch (err) {
-            console.warn('AI Insight fetch failed', err);
-        } finally {
-            setLoadingAI(false);
         }
     };
 
@@ -451,7 +494,7 @@ export default function ReportScreen() {
                     <ActivityIndicator size="large" color="#6366F1" />
                 </View>
             ) : viewMode === 'monthly' && reportData ? (
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 36) }]} showsVerticalScrollIndicator={false}>
                     {/* AI Insights Card */}
                     {(loadingAI || aiInsights.length > 0) && (
                         <View style={styles.aiCard}>
@@ -582,10 +625,9 @@ export default function ReportScreen() {
                             )}
                         </View>
                     </View>
-                    <View style={{ height: 60 }} />
                 </ScrollView>
             ) : viewMode === 'yearly' && yearlyData ? (
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 36) }]} showsVerticalScrollIndicator={false}>
                     {/* Annual Trend Bar Chart */}
                     <View style={styles.chartCard}>
                         <View style={styles.chartHeader}>
@@ -678,7 +720,6 @@ export default function ReportScreen() {
                             </View>
                         </View>
                     </View>
-                    <View style={{ height: 60 }} />
                 </ScrollView>
             ) : null}
 

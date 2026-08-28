@@ -111,8 +111,8 @@ export default function FloatingAssistant() {
         })
     ).current;
 
-    // Hide on assistant page, auth pages, add transaction, create diary, or form screens
-    const hiddenRoutes = ['/assistant', '/auth', '/add', '/diary/create', 'form'];
+    // Hide on assistant page, auth pages, add transaction, create diary, form screens, or report page
+    const hiddenRoutes = ['/assistant', '/auth', '/add', '/diary/create', 'form', '/report'];
     if (hiddenRoutes.some(route => pathname.includes(route))) {
         return null;
     }

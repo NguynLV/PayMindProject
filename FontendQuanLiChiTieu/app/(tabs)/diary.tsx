@@ -1021,7 +1021,16 @@ function ReviewTab({ entries, loading, entriesMap, year, month, prevMonth, nextM
                         )}
                         <Text style={cf.userName}>{user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() : 'Người dùng'}</Text>
                       </View>
-                      <Text style={cf.dateText}>{formatCreatedAt(item.createdAt)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={cf.dateText}>{formatCreatedAt(item.createdAt)}</Text>
+                        <TouchableOpacity
+                          style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginLeft: 4 }}
+                          onPress={() => handleDeleteEntry(item)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
 
                     {/* Image or Mood Placeholder */}
@@ -1455,7 +1464,14 @@ export default function DiaryScreen() {
         try {
           await diaryService.delete(entry.id!);
           await loadEntries();
-          if ((entriesMap[selectedDate ?? ''] ?? []).filter(e => e.id !== entry.id).length === 0) setSelectedDate(null);
+          if (selectedEntry?.id === entry.id) {
+            setSelectedEntry(null);
+          }
+          const remainingInDay = (entriesMap[selectedDate ?? ''] ?? []).filter(e => e.id !== entry.id);
+          if (remainingInDay.length === 0) {
+            setSelectedDate(null);
+          }
+          toast.success('Đã xóa thành công! 🗑️', 'Kỷ niệm đã được xóa khỏi nhật ký.');
         } catch { toast.error('Xóa thất bại!', 'Không xóa được. Thử lại sau.'); }
       },
       'Xóa thôi',

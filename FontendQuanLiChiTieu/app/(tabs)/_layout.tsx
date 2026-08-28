@@ -59,6 +59,7 @@ export default function TabLayout() {
         name="add"
         options={{
           title: '',
+          sceneStyle: { backgroundColor: '#111111' },
           tabBarStyle: { display: 'none' },
           tabBarIcon: ({ focused }) => (
             <View style={styles.fabWrapper}>

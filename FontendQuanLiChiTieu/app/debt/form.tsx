@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, Platform, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -17,6 +18,7 @@ const formatNumber = (n: string) => {
 export default function DebtFormScreen() {
     const router = useRouter();
     const toast = useToast();
+    const insets = useSafeAreaInsets();
     const params = useLocalSearchParams();
     const isEdit = !!params.id;
 
@@ -32,6 +34,12 @@ export default function DebtFormScreen() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
+
+    // Focused states for style highlights
+    const [isDebtorFocused, setIsDebtorFocused] = useState(false);
+    const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+    const [isItemDescFocused, setIsItemDescFocused] = useState(false);
+    const [isAmountFocused, setIsAmountFocused] = useState(false);
 
     useEffect(() => {
         if (params.type === 'BORROWED') {
@@ -176,8 +184,11 @@ export default function DebtFormScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView 
+                    contentContainerStyle={[styles.formContainer, { paddingBottom: Math.max(insets.bottom + 20, 32) }]} 
+                    keyboardShouldPersistTaps="handled" 
+                    showsVerticalScrollIndicator={false}
+                >
                     
                     {/* Tab Selector */}
                     <Text style={styles.sectionLabel}>Tính chất giao dịch</Text>
@@ -203,10 +214,10 @@ export default function DebtFormScreen() {
                     </View>
 
                     {/* Debtor Details Card */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, (isDebtorFocused || isPhoneFocused) && styles.cardFocused]}>
                         <Text style={styles.cardLabel}>{type === 'LENT' ? 'Người vay' : 'Người cho vay'}</Text>
                         <View style={styles.inputRow}>
-                            <Ionicons name="person-outline" size={18} color="#7C3AED" style={styles.inputIcon} />
+                            <Ionicons name="person-outline" size={18} color={isDebtorFocused ? "#6366F1" : "#7C3AED"} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.textInput}
                                 placeholder={type === 'LENT' ? "Ví dụ: Nguyễn Văn A..." : "Ví dụ: Trần Văn B..."}
@@ -214,10 +225,13 @@ export default function DebtFormScreen() {
                                 value={debtorName}
                                 onChangeText={setDebtorName}
                                 maxLength={50}
+                                returnKeyType="done"
+                                onFocus={() => setIsDebtorFocused(true)}
+                                onBlur={() => setIsDebtorFocused(false)}
                             />
                         </View>
                         <View style={[styles.inputRow, { marginTop: 12 }]}>
-                            <Ionicons name="call-outline" size={18} color="#7C3AED" style={styles.inputIcon} />
+                            <Ionicons name="call-outline" size={18} color={isPhoneFocused ? "#6366F1" : "#7C3AED"} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.textInput}
                                 placeholder="Số điện thoại (không bắt buộc)"
@@ -226,6 +240,9 @@ export default function DebtFormScreen() {
                                 onChangeText={setPhoneNumber}
                                 keyboardType="phone-pad"
                                 maxLength={15}
+                                returnKeyType="done"
+                                onFocus={() => setIsPhoneFocused(true)}
+                                onBlur={() => setIsPhoneFocused(false)}
                             />
                         </View>
                     </View>
@@ -257,10 +274,10 @@ export default function DebtFormScreen() {
                     </View>
 
                     {itemType !== 'CASH' && (
-                        <View style={styles.card}>
+                        <View style={[styles.card, isItemDescFocused && styles.cardFocused]}>
                             <Text style={styles.cardLabel}>Chi tiết món nợ</Text>
                             <View style={styles.inputRow}>
-                                <Ionicons name="fast-food-outline" size={18} color="#7C3AED" style={styles.inputIcon} />
+                                <Ionicons name="fast-food-outline" size={18} color={isItemDescFocused ? "#6366F1" : "#7C3AED"} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.textInput}
                                     placeholder="Ví dụ: Trà sữa Phúc Long size L, Cơm sườn 2 trứng..."
@@ -268,23 +285,29 @@ export default function DebtFormScreen() {
                                     value={itemDescription}
                                     onChangeText={setItemDescription}
                                     maxLength={100}
+                                    returnKeyType="done"
+                                    onFocus={() => setIsItemDescFocused(true)}
+                                    onBlur={() => setIsItemDescFocused(false)}
                                 />
                             </View>
                         </View>
                     )}
 
                     {/* Amount */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, isAmountFocused && styles.cardFocused]}>
                         <Text style={styles.cardLabel}>Quy đổi ra số tiền</Text>
                         <View style={styles.amountRow}>
-                            <Text style={styles.currencySymbol}>đ</Text>
+                            <Text style={[styles.currencySymbol, (amount || isAmountFocused) && { color: '#6366F1' }]}>đ</Text>
                             <TextInput
-                                style={styles.amountInput}
+                                style={[styles.amountInput, (amount || isAmountFocused) && { color: '#6366F1' }]}
                                 placeholder="0"
-                                placeholderTextColor="#7C3AED"
+                                placeholderTextColor="#9CA3AF"
                                 value={amount ? formatNumber(amount) : ''}
                                 onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
                                 keyboardType="numeric"
+                                returnKeyType="done"
+                                onFocus={() => setIsAmountFocused(true)}
+                                onBlur={() => setIsAmountFocused(false)}
                             />
                         </View>
 
@@ -374,28 +397,25 @@ export default function DebtFormScreen() {
                         />
                     </View>
 
-                    <View style={{ height: 100 }} />
+                    {/* Footer Save Button */}
+                    <View style={styles.footerContainer}>
+                        <TouchableOpacity
+                            style={[styles.saveBtn, (!debtorName.trim() || !amount) && styles.saveBtnDisabled]}
+                            onPress={handleSave}
+                            disabled={!debtorName.trim() || !amount || loading}
+                            activeOpacity={0.85}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={styles.saveBtnText}>{isEdit ? 'Cập nhật khoản nợ' : 'Lưu khoản vay/nợ'}</Text>
+                                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </ScrollView>
-
-                {/* Footer Save Button */}
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[styles.saveBtn, (!debtorName.trim() || !amount) && styles.saveBtnDisabled]}
-                        onPress={handleSave}
-                        disabled={!debtorName.trim() || !amount || loading}
-                        activeOpacity={0.85}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.saveBtnText}>{isEdit ? 'Cập nhật khoản nợ' : 'Lưu khoản vay/nợ'}</Text>
-                                <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginLeft: 8 }} />
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -420,7 +440,8 @@ const styles = StyleSheet.create({
     borrowedBtnActive: { backgroundColor: '#FEE2E2', borderColor: '#EF4444' },
     borrowedBtnTextActive: { color: '#991B1B' },
     
-    card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1, borderWidth: 1, borderColor: '#F3F4F6' },
+    card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1, borderWidth: 1.5, borderColor: '#F3F4F6' },
+    cardFocused: { borderColor: '#6366F1', backgroundColor: '#FAFAFF' },
     cardLabel: { fontSize: 12, fontWeight: '700', color: '#6B7280', marginBottom: 10 },
     inputRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 8 },
     inputIcon: { marginRight: 8 },
@@ -453,7 +474,7 @@ const styles = StyleSheet.create({
     
     noteInput: { fontSize: 14, color: '#111827', padding: 10, backgroundColor: '#F9FAFB', borderRadius: 10, minHeight: 60, textAlignVertical: 'top' },
     
-    footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+    footerContainer: { marginTop: 24, marginBottom: 20 },
     saveBtn: { backgroundColor: '#7C3AED', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
     saveBtnDisabled: { backgroundColor: '#C4B5FD', shadowOpacity: 0 },
     saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }

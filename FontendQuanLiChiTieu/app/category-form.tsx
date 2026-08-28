@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Switch, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -14,6 +15,7 @@ export default function CategoryFormScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const toast = useToast();
+    const insets = useSafeAreaInsets();
 
     const editId = params.id ? parseInt(params.id as string) : null;
     const initialType = (params.type as 'EXPENSE' | 'INCOME') || 'EXPENSE';
@@ -97,7 +99,7 @@ export default function CategoryFormScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 32) }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {/* Preview Circle */}
                 <View style={styles.previewContainer}>
                     <View style={[styles.previewIconBox, { backgroundColor: color + '15' }]}>
@@ -115,6 +117,7 @@ export default function CategoryFormScreen() {
                         value={name}
                         onChangeText={setName}
                         autoFocus={!editId}
+                        returnKeyType="done"
                         onFocus={() => setIsNameFocused(true)}
                         onBlur={() => setIsNameFocused(false)}
                     />

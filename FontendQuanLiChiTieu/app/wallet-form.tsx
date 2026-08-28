@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, Platform, ScrollView, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -10,6 +11,7 @@ import UserService, { UserProfile } from '@/services/user.service';
 export default function WalletFormScreen() {
     const router = useRouter();
     const toast = useToast();
+    const insets = useSafeAreaInsets();
     const params = useLocalSearchParams();
     const isEdit = !!params.id;
 
@@ -87,55 +89,54 @@ export default function WalletFormScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-                style={{ flex: 1 }}
+            <ScrollView 
+                contentContainerStyle={[styles.formContainer, { paddingBottom: Math.max(insets.bottom + 20, 32) }]} 
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
             >
-                <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
-                    
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Tên tài khoản / ví</Text>
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Tên tài khoản / ví</Text>
+                    <TextInput
+                        style={[
+                            styles.input, 
+                            isNameFocused && styles.inputFocused
+                        ]}
+                        placeholder="Ví dụ: Thẻ Visa, Ví MoMo, Tiền mặt..."
+                        placeholderTextColor="#9CA3AF"
+                        value={name}
+                        onChangeText={setName}
+                        maxLength={30}
+                        returnKeyType="done"
+                        onFocus={() => setIsNameFocused(true)}
+                        onBlur={() => setIsNameFocused(false)}
+                    />
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Số dư {isEdit ? 'hiện tại' : 'ban đầu'}</Text>
+                    <View style={[
+                        styles.amountInputContainer,
+                        isBalanceFocused && styles.amountInputContainerFocused
+                    ]}>
                         <TextInput
-                            style={[
-                                styles.input, 
-                                isNameFocused && styles.inputFocused
-                            ]}
-                            placeholder="Ví dụ: Thẻ Visa, Ví MoMo, Tiền mặt..."
+                            style={styles.amountInput}
+                            placeholder="0"
                             placeholderTextColor="#9CA3AF"
-                            value={name}
-                            onChangeText={setName}
-                            maxLength={30}
-                            onFocus={() => setIsNameFocused(true)}
-                            onBlur={() => setIsNameFocused(false)}
+                            value={balance ? new Intl.NumberFormat('en-US').format(Number(balance)) : ''}
+                            onFocus={() => setIsBalanceFocused(true)}
+                            onBlur={() => setIsBalanceFocused(false)}
+                            onChangeText={(text) => {
+                                const numeric = text.replace(/[^0-9]/g, '');
+                                setBalance(numeric);
+                            }}
+                            keyboardType="numeric"
+                            returnKeyType="done"
                         />
+                        <Text style={styles.currencyLabel}>đ</Text>
                     </View>
+                </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Số dư {isEdit ? 'hiện tại' : 'ban đầu'}</Text>
-                        <View style={[
-                            styles.amountInputContainer,
-                            isBalanceFocused && styles.amountInputContainerFocused
-                        ]}>
-                            <TextInput
-                                style={styles.amountInput}
-                                placeholder="0"
-                                placeholderTextColor="#9CA3AF"
-                                value={balance ? new Intl.NumberFormat('en-US').format(Number(balance)) : ''}
-                                onFocus={() => setIsBalanceFocused(true)}
-                                onBlur={() => setIsBalanceFocused(false)}
-                                onChangeText={(text) => {
-                                    const numeric = text.replace(/[^0-9]/g, '');
-                                    setBalance(numeric);
-                                }}
-                                keyboardType="numeric"
-                            />
-                            <Text style={styles.currencyLabel}>đ</Text>
-                        </View>
-                    </View>
-
-                </ScrollView>
-
-                <View style={styles.footer}>
+                <View style={styles.footerContainer}>
                     <TouchableOpacity
                         style={[
                             styles.saveBtn, 
@@ -152,7 +153,7 @@ export default function WalletFormScreen() {
                         )}
                     </TouchableOpacity>
                 </View>
-            </KeyboardAvoidingView>
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
     
     input: { 
         backgroundColor: '#FFFFFF', 
-        borderWidth: 1, 
+        borderWidth: 1.5, 
         borderColor: '#E5E7EB', 
         borderRadius: 14, 
         paddingHorizontal: 16, 
@@ -181,19 +182,21 @@ const styles = StyleSheet.create({
     },
     inputFocused: {
         borderColor: '#6366F1',
+        backgroundColor: '#FAFAFF'
     },
 
     amountInputContainer: { 
         flexDirection: 'row', 
         alignItems: 'center', 
         backgroundColor: '#FFFFFF', 
-        borderWidth: 1, 
+        borderWidth: 1.5, 
         borderColor: '#E5E7EB', 
         borderRadius: 14, 
         paddingHorizontal: 16 
     },
     amountInputContainerFocused: {
         borderColor: '#6366F1',
+        backgroundColor: '#FAFAFF'
     },
     amountInput: { 
         flex: 1, 
@@ -205,7 +208,7 @@ const styles = StyleSheet.create({
     },
     currencyLabel: { fontSize: 14, fontWeight: '700', color: '#6B7280', paddingLeft: 8 },
 
-    footer: { padding: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+    footerContainer: { marginTop: 12 },
     saveBtn: { 
         backgroundColor: '#6366F1', 
         borderRadius: 14, 
@@ -213,10 +216,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         shadowColor: '#6366F1',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.15,
         shadowRadius: 8,
         elevation: 2
     },
-    saveBtnDisabled: { backgroundColor: '#9CA3AF', shadowOpacity: 0, elevation: 0 },
+    saveBtnDisabled: { backgroundColor: '#A5B4FC', shadowOpacity: 0, elevation: 0 },
     saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' }
 });
